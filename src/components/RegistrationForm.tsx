@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { User, Mail, Phone, Hash, CreditCard, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Phone, Hash, CreditCard, ChevronRight, Loader2, AlertCircle, MapPin } from 'lucide-react';
 import { z } from 'zod';
 import { toast } from 'sonner';
 
@@ -13,7 +13,8 @@ const RegistrationSchema = z.object({
   email: z.string().email('Format email tidak valid'),
   phone: z.string().min(10, 'Nomor WhatsApp minimal 10 digit').max(15, 'Nomor WhatsApp maksimal 15 digit').regex(/^[0-9]+$/, 'Hanya boleh berisi angka'),
   npa: z.string().optional(),
-  category: z.enum(['guest', 'delegate']),
+  category: z.string().min(1, 'Pilih kategori keanggotaan'),
+  branchId: z.string().optional(),
 });
 
 type FormErrors = {
@@ -26,21 +27,37 @@ declare global {
   }
 }
 
-const CATEGORIES = [
-  { id: 'guest', name: 'Tamu / Undangan', price: 'Rp 5.000' },
-  { id: 'delegate', name: 'Utusan', price: 'Gratis' },
-];
-
 export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps) {
   const [loading, setLoading] = useState(false);
+  const [loadingDefs, setLoadingDefs] = useState(true);
   const [errors, setErrors] = useState<FormErrors>({});
+  
+  const [branches, setBranches] = useState<{id: string, name: string}[]>([]);
+  const [categories, setCategories] = useState<{id: string, name: string, price: number}[]>([]);
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
     npa: '',
-    category: 'guest' as any,
+    category: '',
+    branchId: '',
   });
+
+  useEffect(() => {
+    Promise.all([fetch('/api/branches'), fetch('/api/categories')])
+      .then(async ([resB, resC]) => {
+        if (resB.ok) setBranches(await resB.json());
+        if (resC.ok) {
+          const cats = await resC.json();
+          setCategories(cats);
+          if (cats.length > 0) {
+            setFormData(p => ({ ...p, category: cats[0].id }));
+          }
+        }
+      })
+      .finally(() => setLoadingDefs(false));
+  }, []);
 
   const validate = () => {
     try {
@@ -61,6 +78,13 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
     }
   };
 
+  const handleChange = (field: keyof typeof formData, value: string) => {
+    setFormData({ ...formData, [field]: value });
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -76,6 +100,8 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
       });
 
       const data = await response.json();
+      
+      const catName = categories.find(c => c.id === formData.category)?.name || formData.category;
 
       if (!response.ok) {
         toast.error(data.message || 'Gagal memproses pendaftaran. Silakan coba lagi.');
@@ -85,20 +111,20 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
       
       if (data.isFree) {
         toast.success('Pendaftaran Berhasil! Tiket dikirim ke email Anda.');
-        onSuccess({ ...formData, orderId: data.orderId });
+        onSuccess({ ...formData, category: catName, orderId: data.orderId });
         return;
       }
 
       if (data.isDummy) {
         toast.success('Mode Demo: Pembayaran disimulasikan berhasil.');
-        onSuccess({ ...formData, orderId: data.orderId });
+        onSuccess({ ...formData, category: catName, orderId: data.orderId });
         return;
       }
 
       if (data.token) {
         window.snap.pay(data.token, {
           onSuccess: function (result: any) {
-            onSuccess({ ...formData, orderId: result.order_id });
+            onSuccess({ ...formData, category: catName, orderId: result.order_id });
           },
           onPending: function (result: any) {
             onPending({ orderId: result.order_id });
@@ -116,13 +142,9 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
     }
   };
 
-  const handleChange = (field: keyof typeof formData, value: string) => {
-    setFormData({ ...formData, [field]: value });
-    // Clear error for the field being typed
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }));
-    }
-  };
+  if (loadingDefs) {
+    return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-emerald-600" /></div>;
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -214,41 +236,66 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
         </div>
       </div>
 
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Cabang IDI (Opsional)</label>
+        <div className="relative">
+          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
+          <select 
+            className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all font-medium text-sm appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[position:right_1rem_center] bg-[size:1.2em] bg-no-repeat"
+            value={formData.branchId}
+            onChange={(e) => handleChange('branchId', e.target.value)}
+          >
+            <option value="">Pilih Cabang IDI</option>
+            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </div>
+      </div>
+
       <div className="space-y-3">
         <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Kategori Keanggotaan</label>
-        <div className="grid grid-cols-1 gap-2">
-          {CATEGORIES.map((cat) => (
-            <label 
-              key={cat.id}
-              className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                formData.category === cat.id ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'
-              }`}
-            >
-              <input 
-                type="radio"
-                name="category"
-                className="hidden"
-                value={cat.id}
-                checked={formData.category === cat.id}
-                onChange={(e) => handleChange('category', e.target.value)}
-              />
-              <div className="flex items-center gap-3">
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                  formData.category === cat.id ? 'border-emerald-600' : 'border-slate-300'
-                }`}>
-                  {formData.category === cat.id && <div className="w-2.5 h-2.5 bg-emerald-600 rounded-full"></div>}
+        {categories.length === 0 ? (
+          <div className="text-sm font-medium text-slate-500">Tidak ada kategori tersedia saat ini.</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-2">
+            {categories.map((cat) => (
+              <label 
+                key={cat.id}
+                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  formData.category === cat.id ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'
+                }`}
+              >
+                <input 
+                  type="radio"
+                  name="category"
+                  className="hidden"
+                  value={cat.id}
+                  checked={formData.category === cat.id}
+                  onChange={(e) => handleChange('category', e.target.value)}
+                />
+                <div className="flex items-center gap-3">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    formData.category === cat.id ? 'border-emerald-600' : 'border-slate-300'
+                  }`}>
+                    {formData.category === cat.id && <div className="w-2.5 h-2.5 bg-emerald-600 rounded-full"></div>}
+                  </div>
+                  <span className="font-bold text-slate-700 uppercase tracking-tight text-[11px]">{cat.name}</span>
                 </div>
-                <span className="font-bold text-slate-700 uppercase tracking-tight text-[11px]">{cat.name}</span>
-              </div>
-              <span className="font-black text-emerald-600 text-sm tracking-tight">{cat.price}</span>
-            </label>
-          ))}
-        </div>
+                <span className="font-black text-emerald-600 text-sm tracking-tight">{cat.price === 0 ? 'Gratis' : `Rp ${cat.price.toLocaleString('id-ID')}`}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {errors.category && (
+          <div className="flex items-center gap-1 text-[10px] text-red-500 font-bold ml-1">
+            <AlertCircle size={12} />
+            <span>{errors.category}</span>
+          </div>
+        )}
       </div>
 
       <div className="pt-6">
         <button 
-          disabled={loading}
+          disabled={loading || categories.length === 0}
           type="submit"
           className="w-full group flex items-center justify-center gap-2 bg-slate-900 text-white px-8 py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-xs transition-all hover:bg-emerald-600 disabled:opacity-50 shadow-xl shadow-slate-900/10 active:scale-[0.98]"
         >

@@ -91,7 +91,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem', textAlign: 'center' }}>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: '#94a3b8', margin: 0 }}>Kategori</p>
-                  <p className="font-bold text-[11px] uppercase" style={{ color: '#334155', margin: 0 }}>{data.category === 'guest' ? 'Tamu/Undangan' : 'Utusan'}</p>
+                  <p className="font-bold text-[11px] uppercase" style={{ color: '#334155', margin: 0 }}>{data.category}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: '#94a3b8', margin: 0 }}>ID Pesanan</p>

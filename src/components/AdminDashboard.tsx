@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock } from 'lucide-react';
+import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Registrant {
@@ -8,98 +8,200 @@ interface Registrant {
   email: string;
   phone: string;
   category: string;
+  categoryId: string;
+  branchId: string;
   status: string;
   amount: number;
   createdAt: string;
 }
 
+interface Branch { id: string; name: string; }
+interface Category { id: string; name: string; price: number; }
+
 export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [registrants, setRegistrants] = useState<Registrant[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
+  
+  const [activeTab, setActiveTab] = useState<'registrations' | 'branches' | 'categories'>('registrations');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+
+  // Modal State
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [branchName, setBranchName] = useState('');
+
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryName, setCategoryName] = useState('');
+  const [categoryPrice, setCategoryPrice] = useState<number>(0);
+
+  const authHeaders = { 'x-admin-username': username, 'x-admin-password': password };
 
   const fetchRegistrants = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/registrations', {
-        headers: { 
-          'x-admin-username': username,
-          'x-admin-password': password
-        }
-      });
+      const response = await fetch('/api/admin/registrations', { headers: authHeaders });
       if (response.ok) {
-        const data = await response.json();
-        setRegistrants(data);
+        setRegistrants(await response.json());
         setIsAuthorized(true);
-        toast.success('Data registrasi berhasil dimuat');
       } else {
-        toast.error('Gagal memuat data. Username atau password salah.');
+        toast.error('Gagal memuat data.');
       }
-    } catch (error) {
-      console.error(error);
-      toast.error('Terjadi kesalahan jaringan.');
-    } finally {
-      setLoading(false);
+    } catch (error) { toast.error('Terjadi kesalahan jaringan.'); }
+    finally { setLoading(false); }
+  };
+
+  const fetchBranchesAndCategories = async () => {
+    try {
+      const [resB, resC] = await Promise.all([
+        fetch('/api/branches'),
+        fetch('/api/categories')
+      ]);
+      if (resB.ok) setBranches(await resB.json());
+      if (resC.ok) setCategories(await resC.json());
+    } catch(e) {}
+  };
+
+  const handleLogin = async () => {
+    await fetchRegistrants();
+    if (isAuthorized) {
+      await fetchBranchesAndCategories();
     }
   };
 
-  const filteredRegistrants = registrants.filter(r => 
-    r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const stats = {
-    total: registrants.length,
-    paid: registrants.filter(r => r.status === 'settlement' || r.status === 'capture').length,
-    pending: registrants.filter(r => r.status === 'pending').length,
-    revenue: registrants.filter(r => r.status === 'settlement' || r.status === 'capture').reduce((acc, curr) => acc + curr.amount, 0)
+  // Branch Handlers
+  const handleAddBranch = () => {
+    setEditingBranch(null);
+    setBranchName('');
+    setShowBranchModal(true);
   };
+
+  const handleEditBranch = (branch: Branch) => {
+    setEditingBranch(branch);
+    setBranchName(branch.name);
+    setShowBranchModal(true);
+  };
+
+  const saveBranch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!branchName.trim()) return;
+    setLoading(true);
+    try {
+      const url = editingBranch ? `/api/admin/branches/${editingBranch.id}` : '/api/admin/branches';
+      const method = editingBranch ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method, headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: branchName })
+      });
+      if (res.ok) { 
+        toast.success(editingBranch ? 'Cabang diperbarui' : 'Cabang ditambahkan'); 
+        setShowBranchModal(false);
+        fetchBranchesAndCategories(); 
+      }
+      else toast.error('Gagal menyimpan');
+    } catch(e) { toast.error('Error'); }
+    finally { setLoading(false); }
+  };
+
+  const deleteBranch = async (id: string) => {
+    if (!window.confirm("Hapus cabang ini?")) return;
+    try {
+      const res = await fetch(`/api/admin/branches/${id}`, { method: 'DELETE', headers: authHeaders });
+      if (res.ok) { toast.success('Terhapus'); fetchBranchesAndCategories(); }
+    } catch(e) { toast.error('Error'); }
+  };
+
+  // Category Handlers
+  const handleAddCategory = () => {
+    setEditingCategory(null);
+    setCategoryName('');
+    setCategoryPrice(0);
+    setShowCategoryModal(true);
+  };
+
+  const handleEditCategory = (cat: Category) => {
+    setEditingCategory(cat);
+    setCategoryName(cat.name);
+    setCategoryPrice(cat.price);
+    setShowCategoryModal(true);
+  };
+
+  const saveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryName.trim()) return;
+    setLoading(true);
+    try {
+      const url = editingCategory ? `/api/admin/categories/${editingCategory.id}` : '/api/admin/categories';
+      const method = editingCategory ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method, headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: categoryName, price: Number(categoryPrice) })
+      });
+      if (res.ok) { 
+        toast.success(editingCategory ? 'Kategori diperbarui' : 'Kategori ditambahkan'); 
+        setShowCategoryModal(false);
+        fetchBranchesAndCategories(); 
+      }
+      else toast.error('Gagal menyimpan');
+    } catch(e) { toast.error('Error'); }
+    finally { setLoading(false); }
+  };
+
+  const deleteCategory = async (id: string) => {
+    if (!window.confirm("Hapus kategori ini?")) return;
+    try {
+      const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE', headers: authHeaders });
+      if (res.ok) { toast.success('Terhapus'); fetchBranchesAndCategories(); }
+    } catch(e) { toast.error('Error'); }
+  };
+
+  const filteredRegistrants = registrants.filter(r => {
+    const matchSearch = r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || r.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchCat = filterCategory === 'all' || r.categoryId === filterCategory;
+    const matchStatus = filterStatus === 'all' || r.status === filterStatus;
+    return matchSearch && matchCat && matchStatus;
+  });
 
   if (!isAuthorized) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="p-10 w-full max-w-md bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 text-center space-y-8 relative overflow-hidden">
-          {/* Decorative background blur */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-emerald-50 blur-3xl rounded-full opacity-50 -z-10" />
-          
           <div className="w-20 h-20 bg-gradient-to-tr from-slate-900 to-slate-800 text-white rounded-3xl flex items-center justify-center mx-auto mb-2 shadow-lg shadow-slate-900/20 rotate-3">
             <Users size={36} className="-rotate-3" />
           </div>
-          
           <div>
             <h2 className="text-3xl font-black uppercase tracking-tight text-slate-900 mb-2">Admin Panel</h2>
-            <p className="text-slate-500 text-sm font-medium">Masukan username dan kata sandi administrator untuk mengakses data pendaftaran.</p>
           </div>
-
           <div className="space-y-4 pt-4">
             <input 
-              type="text" 
-              placeholder="Username Admin"
-              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white rounded-2xl outline-none transition-all text-center font-bold text-slate-800"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchRegistrants()}
+              type="text" placeholder="Username Admin"
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl outline-none text-center font-bold"
+              value={username} onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             />
             <input 
-              type="password" 
-              placeholder="••••••••"
-              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white rounded-2xl outline-none transition-all text-center tracking-[0.3em] font-bold text-slate-800"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchRegistrants()}
+              type="password" placeholder="••••••••"
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-2xl outline-none text-center tracking-[0.3em] font-bold"
+              value={password} onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             />
             <button 
-              onClick={fetchRegistrants}
-              disabled={loading}
-              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:shadow-none"
+              onClick={handleLogin} disabled={loading}
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-2"
             >
               {loading ? <RefreshCw className="animate-spin" size={16} /> : 'Masuk Panel'}
             </button>
-            <button onClick={onBack} className="block w-full text-slate-400 text-[10px] uppercase font-black tracking-widest hover:text-slate-900 transition-colors pt-4">
+            <button onClick={onBack} className="block w-full text-slate-400 text-[10px] uppercase font-black tracking-widest pt-4 hover:text-slate-900">
               ← Kembali ke Beranda
             </button>
           </div>
@@ -109,153 +211,284 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-8 bg-slate-50 min-h-screen">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-100">
-        <div>
-          <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-slate-900 text-[10px] font-black uppercase tracking-widest mb-4 transition-all">
-            <ArrowLeft size={14} /> Kembali
+    <div className="flex bg-slate-50 min-h-screen">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 z-10 shrink-0">
+        <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-tr from-slate-900 to-slate-800 text-white rounded-xl flex items-center justify-center rotate-3">
+            <Users size={20} className="-rotate-3" />
+          </div>
+          <div>
+            <div className="font-black text-xs uppercase tracking-widest text-slate-900">Muswil Admin</div>
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">IDI Kaltim</div>
+          </div>
+        </div>
+        <nav className="p-4 space-y-1 flex-1">
+          <button 
+            onClick={() => setActiveTab('registrations')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+              activeTab === 'registrations' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <BarChart size={16} /> Data Registrations
           </button>
-          <h2 className="text-3xl font-black uppercase tracking-tight text-slate-900">Dashboard Admin</h2>
-          <p className="text-slate-500 font-medium text-sm mt-1">Status Real-time Pendaftaran Muswil IDI Kaltim 2026</p>
+          <button 
+            onClick={() => setActiveTab('branches')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+              activeTab === 'branches' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <MapPin size={16} /> Cabang IDI
+          </button>
+          <button 
+            onClick={() => setActiveTab('categories')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+              activeTab === 'categories' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <Tag size={16} /> Kategori
+          </button>
+        </nav>
+        <div className="p-4 border-t border-slate-100">
+          <button onClick={onBack} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">
+            <ArrowLeft size={14} /> Keluar
+          </button>
         </div>
-        <button 
-          onClick={fetchRegistrants}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 bg-white border-2 border-slate-100 px-6 py-4 md:py-3 rounded-2xl text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300 hover:text-slate-900 hover:bg-slate-50 transition-all disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh Data
-        </button>
-      </div>
+      </aside>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Pendaftar', value: stats.total, icon: Users, bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
-          { label: 'Lunas / Berhasil', value: stats.paid, icon: CheckCircle2, bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100' },
-          { label: 'Menunggu Bayar', value: stats.pending, icon: Clock, bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' },
-          { label: 'Total Pendapatan', value: `Rp ${stats.revenue.toLocaleString()}`, icon: BarChart, bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100' }
-        ].map((stat, i) => (
-          <div key={i} className={`bg-white p-6 rounded-[2rem] border ${stat.border} shadow-sm overflow-hidden relative`}>
-            <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full ${stat.bg} opacity-50 blur-2xl`}></div>
-            <div className="flex items-center gap-4 relative z-10">
-              <div className={`${stat.bg} ${stat.text} p-4 rounded-2xl`}>
-                <stat.icon size={24} />
+      {/* Main Content */}
+      <main className="ml-64 flex-1 p-8 h-screen overflow-y-auto">
+        <div className="max-w-6xl mx-auto space-y-8">
+          
+          {activeTab === 'registrations' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Data Pendaftar</h2>
+                <button onClick={fetchRegistrants} className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300">
+                  <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+                </button>
               </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{stat.label}</p>
-                {loading ? (
-                  <div className="h-7 w-20 bg-slate-100 rounded-lg animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-black text-slate-900 tracking-tight">{stat.value}</p>
-                )}
+
+              {/* Filters */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+                <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 flex items-center focus-within:border-slate-300">
+                  <Search size={16} className="text-slate-400 mr-3" />
+                  <input 
+                    type="text" placeholder="Cari nama, email, atau ID..."
+                    className="bg-transparent border-none outline-none w-full text-sm font-semibold"
+                    value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <select 
+                  className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+                >
+                  <option value="all">Semua Kategori</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <select 
+                  className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                >
+                  <option value="all">Semua Status</option>
+                  <option value="settlement">Berhasil (Paid)</option>
+                  <option value="pending">Menunggu (Pending)</option>
+                </select>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {/* Search & Table */}
-      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-slate-100 flex items-center bg-white">
-          <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 flex items-center w-full max-w-md focus-within:border-slate-300 focus-within:bg-white transition-all">
-            <Search size={18} className="text-slate-400 mr-3" />
-            <input 
-              type="text" 
-              placeholder="Cari nama, email, atau ID..."
-              className="bg-transparent border-none outline-none w-full text-sm font-semibold text-slate-700 placeholder:text-slate-400 placeholder:font-medium"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto min-h-[400px]">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
-                <th className="px-8 py-5 whitespace-nowrap">Pendaftar</th>
-                <th className="px-8 py-5 whitespace-nowrap">Kategori</th>
-                <th className="px-8 py-5 whitespace-nowrap">Waktu</th>
-                <th className="px-8 py-5 whitespace-nowrap">Status</th>
-                <th className="px-8 py-5 text-right whitespace-nowrap">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {loading ? (
-                Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={idx}>
-                    <td className="px-8 py-5">
-                      <div className="h-4 w-32 bg-slate-200 rounded animate-pulse mb-2"></div>
-                      <div className="h-3 w-24 bg-slate-200 rounded animate-pulse"></div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="h-6 w-20 bg-slate-200 rounded-full animate-pulse"></div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="h-4 w-24 bg-slate-200 rounded animate-pulse mb-2"></div>
-                      <div className="h-3 w-16 bg-slate-200 rounded animate-pulse"></div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="h-4 w-20 bg-slate-200 rounded animate-pulse"></div>
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                      <div className="h-6 w-6 bg-slate-200 rounded animate-pulse ml-auto"></div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                filteredRegistrants.map((reg) => (
-                  <tr key={reg.id} className="hover:bg-slate-50/50 transition-all">
-                    <td className="px-8 py-5">
-                      <div className="font-bold text-slate-800 text-sm">{reg.fullName}</div>
-                      <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-1 font-medium">
-                        <Mail size={10} /> {reg.email}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${reg.category === 'guest' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                        {reg.category === 'guest' ? 'Tamu/Undangan' : 'Utusan'}
-                      </span>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="text-slate-600 text-xs font-medium">
-                        {new Date(reg.createdAt).toLocaleDateString('id-ID', { dateStyle: 'medium' })}
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">
-                         {new Date(reg.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                       <span className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ${
-                         reg.status === 'settlement' || reg.status === 'capture' ? 'text-emerald-600' : 
-                         reg.status === 'pending' ? 'text-amber-600' : 'text-slate-400'
-                       }`}>
-                         <div className={`w-1.5 h-1.5 rounded-full ${
-                            reg.status === 'settlement' || reg.status === 'capture' ? 'bg-emerald-500 animate-pulse' : 
-                            reg.status === 'pending' ? 'bg-amber-500' : 'bg-slate-400'
-                         }`}></div>
-                         {reg.status}
-                       </span>
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                      <button className="text-slate-400 hover:text-slate-900 transition-all">
-                        <Download size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-          {!loading && filteredRegistrants.length === 0 && (
-            <div className="py-20 text-center text-slate-400 text-sm font-medium">
-              Tidak ada data pendaftaran ditemukan.
+              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-x-auto min-h-[400px]">
+                <table className="w-full text-left max-w-full">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 whitespace-nowrap">
+                      <th className="px-6 py-4">Pendaftar</th>
+                      <th className="px-6 py-4">Kategori</th>
+                      <th className="px-6 py-4">Cabang</th>
+                      <th className="px-6 py-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 text-sm">
+                    {filteredRegistrants.map(r => {
+                      const branchName = branches.find(b => b.id === r.branchId)?.name || r.branchId || '-';
+                      return (
+                      <tr key={r.id}>
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-slate-800">{r.fullName}</div>
+                          <div className="text-[11px] text-slate-500">{r.email}</div>
+                        </td>
+                        <td className="px-6 py-4"><span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase">{r.category}</span></td>
+                        <td className="px-6 py-4 font-semibold text-slate-600">{branchName}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded text-[10px] uppercase font-black tracking-widest ${r.status === 'settlement' || r.status === 'capture' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
+                            {r.status}
+                          </span>
+                        </td>
+                      </tr>
+                    )})}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
+
+          {activeTab === 'branches' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Cabang IDI</h2>
+                <button onClick={handleAddBranch} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-700">
+                  <Plus size={14} /> Tambah
+                </button>
+              </div>
+              <div className="bg-white rounded-[2xl] border border-slate-100 p-2">
+                <table className="w-full text-left table-auto">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
+                      <th className="p-4 rounded-xl">Nama Cabang</th>
+                      <th className="p-4 rounded-xl w-24">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {branches.map(b => (
+                      <tr key={b.id} className="border-t border-slate-50 hover:bg-slate-50/50">
+                        <td className="p-4 font-bold text-sm text-slate-700">{b.name}</td>
+                        <td className="p-4 flex items-center gap-2">
+                          <button onClick={() => handleEditBranch(b)} className="text-amber-500 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50"><Edit size={16} /></button>
+                          <button onClick={() => deleteBranch(b.id)} className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'categories' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Kategori Keanggotaan</h2>
+                <button onClick={handleAddCategory} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-700">
+                  <Plus size={14} /> Tambah
+                </button>
+              </div>
+              <div className="bg-white rounded-[2xl] border border-slate-100 p-2">
+                <table className="w-full text-left table-auto">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
+                      <th className="p-4 rounded-xl">Nama Kategori</th>
+                      <th className="p-4 rounded-xl">Tarif (Rp)</th>
+                      <th className="p-4 rounded-xl w-24">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categories.map(c => (
+                      <tr key={c.id} className="border-t border-slate-50 hover:bg-slate-50/50">
+                        <td className="p-4 font-bold text-sm text-slate-700">{c.name}</td>
+                        <td className="p-4 font-mono text-sm text-slate-600">{c.price.toLocaleString()}</td>
+                        <td className="p-4 flex items-center gap-2">
+                          <button onClick={() => handleEditCategory(c)} className="text-amber-500 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50"><Edit size={16} /></button>
+                          <button onClick={() => deleteCategory(c.id)} className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
         </div>
-      </div>
+      </main>
+
+      {/* Branch Modal */}
+      {showBranchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative">
+            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-6">
+              {editingBranch ? 'Edit Cabang' : 'Tambah Cabang'}
+            </h3>
+            <form onSubmit={saveBranch} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Nama Cabang IDI</label>
+                <input 
+                  type="text" 
+                  value={branchName} 
+                  onChange={e => setBranchName(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold text-slate-800"
+                  placeholder="Contoh: IDI Cabang Samarinda"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setShowBranchModal(false)}
+                  className="flex-1 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={loading || !branchName.trim()}
+                  className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Category Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative">
+            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-6">
+              {editingCategory ? 'Edit Kategori' : 'Tambah Kategori'}
+            </h3>
+            <form onSubmit={saveCategory} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Nama Kategori</label>
+                <input 
+                  type="text" 
+                  value={categoryName} 
+                  onChange={e => setCategoryName(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold text-slate-800"
+                  placeholder="Contoh: Utusan"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Tarif (Rp)</label>
+                <input 
+                  type="number" 
+                  value={categoryPrice} 
+                  onChange={e => setCategoryPrice(Number(e.target.value))}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold text-slate-800"
+                  placeholder="0"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setShowCategoryModal(false)}
+                  className="flex-1 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={loading || !categoryName.trim()}
+                  className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

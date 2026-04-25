@@ -8,7 +8,7 @@ import QRCode from 'qrcode';
 import { z } from 'zod';
 import dotenv from 'dotenv';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc, updateDoc, getDocs, query, where, orderBy, getDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, updateDoc, getDocs, query, where, orderBy, getDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
 
@@ -86,8 +86,24 @@ const RegistrationSchema = z.object({
   email: z.string().email(),
   phone: z.string().min(10),
   npa: z.string().optional(), // Nomor Pokok Anggota IDI
-  category: z.enum(['guest', 'delegate']),
+  category: z.string(),
+  branchId: z.string().optional(),
 });
+
+  const requireAdmin = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const username = req.headers['x-admin-username'] as string;
+    const password = req.headers['x-admin-password'] as string;
+    if (!username || !password) return Object.assign(res.status(401).json({ error: 'Unauthorized' }));
+    try {
+      const adminSnap = await getDoc(doc(db, 'admins', username));
+      if (!adminSnap.exists()) return Object.assign(res.status(401).json({ error: 'Unauthorized' }));
+      const isValid = await bcrypt.compare(password, adminSnap.data().password);
+      if (!isValid) return Object.assign(res.status(401).json({ error: 'Unauthorized' }));
+      next();
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  };
 
 async function startServer() {
   const app = express();
@@ -122,7 +138,21 @@ async function startServer() {
 
       const orderId = `MUSWIL-IDI-${Date.now()}`;
       
-      const price = validatedData.category === 'guest' ? 5000 : 0;
+      let price = 0;
+      let categoryName = validatedData.category;
+      try {
+        const catSnap = await getDoc(doc(db, 'categories', validatedData.category));
+        if (catSnap.exists()) {
+          const catData = catSnap.data();
+          price = catData.price || 0;
+          categoryName = catData.name;
+        } else {
+           if (validatedData.category === 'guest') price = 5000;
+           if (validatedData.category === 'delegate') price = 0;
+        }
+      } catch(e) {
+         if (validatedData.category === 'guest') price = 5000;
+      }
 
       // price === 0 condition
       if (price === 0) {
@@ -134,7 +164,9 @@ async function startServer() {
           email: validatedData.email,
           phone: validatedData.phone,
           npa: validatedData.npa || '',
-          category: validatedData.category,
+          category: categoryName,
+          categoryId: validatedData.category,
+          branchId: validatedData.branchId || '',
           status: 'settlement',
           amount: 0,
           createdAt: new Date().toISOString(),
@@ -150,7 +182,7 @@ async function startServer() {
             phone: validatedData.phone
           },
           custom_field1: validatedData.fullName,
-          custom_field2: validatedData.category,
+          custom_field2: categoryName,
         });
         return res.json({ isFree: true, orderId });
       }
@@ -162,7 +194,9 @@ async function startServer() {
         email: validatedData.email,
         phone: validatedData.phone,
         npa: validatedData.npa || '',
-        category: validatedData.category,
+        category: categoryName,
+        categoryId: validatedData.category,
+        branchId: validatedData.branchId || '',
         status: 'pending',
         amount: price,
         createdAt: new Date().toISOString(),
@@ -191,11 +225,11 @@ async function startServer() {
             id: 'TICKET-MUSWIL',
             price: price,
             quantity: 1,
-            name: `Tiket Muswil IDI Kaltim - ${validatedData.category === 'guest' ? 'Tamu/Undangan' : 'Utusan'}`,
+            name: `Tiket Muswil Kaltim - ${categoryName}`,
           },
         ],
         custom_field1: validatedData.fullName,
-        custom_field2: validatedData.category,
+        custom_field2: categoryName,
       };
 
       const snap = getSnap();
@@ -207,30 +241,9 @@ async function startServer() {
     }
   });
 
-  // API: Admin Registrations
-  app.get('/api/admin/registrations', async (req, res) => {
-    const username = req.headers['x-admin-username'] as string;
-    const password = req.headers['x-admin-password'] as string;
-
-    if (!username || !password) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
+  // API: Get Admin Registrations
+  app.get('/api/admin/registrations', requireAdmin, async (req, res) => {
     try {
-      const adminRef = doc(db, 'admins', username);
-      const adminSnap = await getDoc(adminRef);
-
-      if (!adminSnap.exists()) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      const adminData = adminSnap.data() as any;
-      const isValid = await bcrypt.compare(password, adminData.password);
-
-      if (!isValid) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
       const snapshot = await getDocs(query(collection(db, 'registrations'), orderBy('createdAt', 'desc')));
       const docs = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -241,6 +254,67 @@ async function startServer() {
       console.error('Admin Fetch Error:', error);
       res.status(500).json({ error: 'Internal Server Error' });
     }
+  });
+
+  // Public APIs for form
+  app.get('/api/branches', async (req, res) => {
+    try {
+      const snapshot = await getDocs(query(collection(db, 'branches'), orderBy('name', 'asc')));
+      res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch(e) { res.status(500).json([]); }
+  });
+
+  app.get('/api/categories', async (req, res) => {
+    try {
+      const snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+      res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch(e) { res.status(500).json([]); }
+  });
+
+  // Admin CRUD: Branches
+  app.post('/api/admin/branches', requireAdmin, async (req, res) => {
+    try {
+      const docRef = await addDoc(collection(db, 'branches'), { ...req.body, createdAt: serverTimestamp() });
+      res.json({ id: docRef.id });
+    } catch (error) { res.status(500).json({ error: 'Failed' }); }
+  });
+
+  app.put('/api/admin/branches/:id', requireAdmin, async (req, res) => {
+    try {
+      await updateDoc(doc(db, 'branches', req.params.id), { name: req.body.name });
+      res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: 'Failed' }); }
+  });
+
+  app.delete('/api/admin/branches/:id', requireAdmin, async (req, res) => {
+    try {
+      await deleteDoc(doc(db, 'branches', req.params.id));
+      res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: 'Failed' }); }
+  });
+
+  // Admin CRUD: Categories
+  app.post('/api/admin/categories', requireAdmin, async (req, res) => {
+    try {
+      const { name, price } = req.body;
+      const docRef = await addDoc(collection(db, 'categories'), { name, price: Number(price), createdAt: serverTimestamp() });
+      res.json({ id: docRef.id });
+    } catch (error) { res.status(500).json({ error: 'Failed' }); }
+  });
+
+  app.put('/api/admin/categories/:id', requireAdmin, async (req, res) => {
+    try {
+      const { name, price } = req.body;
+      await updateDoc(doc(db, 'categories', req.params.id), { name, price: Number(price) });
+      res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: 'Failed' }); }
+  });
+
+  app.delete('/api/admin/categories/:id', requireAdmin, async (req, res) => {
+    try {
+      await deleteDoc(doc(db, 'categories', req.params.id));
+      res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: 'Failed' }); }
   });
 
   // API: Get Payment Status
@@ -395,7 +469,7 @@ async function startServer() {
               <table style="width: 100%; font-size: 13px; color: #475569;">
                 <tr>
                   <td style="padding: 5px 0;">Kategori:</td>
-                  <td style="text-align: right; font-weight: bold; color: #0f172a;">${category === 'guest' ? 'Tamu / Undangan' : 'Utusan'}</td>
+                  <td style="text-align: right; font-weight: bold; color: #0f172a;">${category}</td>
                 </tr>
               </table>
             </div>
