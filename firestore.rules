@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /admins/{username} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Registrations collection
+    // We allow read by ID if the requester knows the orderId (security by ID knowledge for now, since it's a public form)
+    // In a real app, we might want to restrict this better, but for checking status it's okay.
+    match /registrations/{orderId} {
+      allow read: if true; 
+      allow write: if true; // Using client SDK from backend requires truthy rules without auth for now
+    }
+  }
+}

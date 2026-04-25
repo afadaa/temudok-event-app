@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "Registration": {
+      "title": "Registration",
+      "description": "Attendee registration record",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "npa": { "type": "string" },
+        "category": { "type": "string", "enum": ["guest", "delegate"] },
+        "status": { "type": "string", "enum": ["pending", "settlement", "capture", "expire", "cancel", "deny"] },
+        "amount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "fullName", "email", "category", "status"]
+    }
+  },
+  "firestore": {
+    "registrations/{orderId}": {
+      "schema": "Registration",
+      "description": "Collection of event registrations indexed by order ID"
+    }
+  }
+}
