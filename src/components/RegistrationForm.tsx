@@ -48,21 +48,28 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
 
   useEffect(() => {
     setLoadingDefs(true);
-    // Fetch branches globally, but categories from event
-    Promise.all([
-      fetch('/api/branches'),
-      fetch(`/api/events`) // We already have events in the parent, but let's re-fetch or use a more specific data source
-    ])
-      .then(async ([resB, resE]) => {
-        if (resB.ok) setBranches(await resB.json());
-        if (resE.ok) {
-          const events: any[] = await resE.json();
-          const event = events.find(e => e.id === selectedEventId);
-          if (event && event.categories) {
-            setCategories(event.categories);
-            if (event.categories.length > 0) {
-              setFormData(p => ({ ...p, category: event.categories[0].id }));
+    // Fetch branches globally, but fetch only the selected event (not all events)
+    const promises: Promise<any>[] = [fetch('/api/branches')];
+    if (selectedEventId) promises.push(fetch(`/api/events/${selectedEventId}`));
+
+    Promise.all(promises)
+      .then(async (results) => {
+        const resB = results[0];
+        if (resB && resB.ok) setBranches(await resB.json());
+
+        if (selectedEventId && results[1]) {
+          const resE = results[1];
+          if (resE.ok) {
+            const event: any = await resE.json();
+            if (event && event.categories) {
+              setCategories(event.categories);
+              if (event.categories.length > 0) {
+                setFormData(p => ({ ...p, category: event.categories[0].id }));
+              }
             }
+          } else {
+            // If single event fetch fails, clear categories
+            setCategories([]);
           }
         }
       })

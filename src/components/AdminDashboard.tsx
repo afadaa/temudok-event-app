@@ -100,15 +100,21 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const fetchBranchesAndCategories = async () => {
     try {
-      const [resB, resC, resE] = await Promise.all([
-        fetch('/api/branches'),
-        fetch('/api/categories'),
-        fetch('/api/admin/events', { headers: authHeaders })
-      ]);
-      if (resB.ok) setBranches(await resB.json());
-      if (resC.ok) setCategories(await resC.json());
-      if (resE.ok) setEvents(await resE.json());
-    } catch(e) {}
+      if (activeTab === 'branches') {
+        const resB = await fetch('/api/branches');
+        if (resB.ok) setBranches(await resB.json());
+      } else if (activeTab === 'categories') {
+        const resC = await fetch('/api/categories');
+        if (resC.ok) setCategories(await resC.json());
+      } else if (activeTab === 'events') {
+        const resE = await fetch('/api/admin/events', { headers: authHeaders });
+        if (resE.ok) setEvents(await resE.json());
+      } else {
+        // default: fetch minimal set
+        const resB = await fetch('/api/branches');
+        if (resB.ok) setBranches(await resB.json());
+      }
+    } catch (e) { console.error(e); }
   };
 
   useEffect(() => {
