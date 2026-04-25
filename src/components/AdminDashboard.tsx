@@ -293,17 +293,11 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     finally { setLoading(false); }
   };
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const deleteEvent = async (id: string) => {
-    if (!id) {
-      toast.error('ID Event tidak valid');
-      return;
-    }
-    
-    if (!window.confirm("Apakah Anda yakin ingin menghapus event ini? Data pendaftaran mungkin akan terpengaruh.")) return;
-    
     setLoading(true);
     try {
-      console.log('Deleting event:', id);
       const res = await fetch(`/api/admin/events/${id}`, { 
         method: 'DELETE', 
         headers: authHeaders 
@@ -311,13 +305,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       
       if (res.ok) { 
         toast.success('Event berhasil dihapus'); 
+        setDeleteConfirmId(null);
         await fetchBranchesAndCategories(); 
       } else {
         const data = await res.json().catch(() => ({}));
         toast.error(`Gagal menghapus: ${data.error || res.statusText}`);
       }
     } catch(e) { 
-      console.error('Delete event error:', e);
       toast.error('Terjadi kesalahan saat menghapus event'); 
     } finally { 
       setLoading(false); 
@@ -787,7 +781,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         </div>
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           <button onClick={() => handleEditEvent(event)} className="p-2 text-slate-400 hover:text-emerald-600 bg-slate-50 rounded-lg"><Edit size={16} /></button>
-                          <button onClick={() => deleteEvent(event.id)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={16} /></button>
+                          <button onClick={() => setDeleteConfirmId(event.id)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={16} /></button>
                         </div>
                       </div>
                       <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-2 line-clamp-2 leading-relaxed">{event.title}</h3>
@@ -829,6 +823,41 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md transition-all">
+          <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden border border-slate-100">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500"></div>
+            
+            <div className="w-20 h-20 bg-rose-50 rounded-[2rem] flex items-center justify-center mb-6 mx-auto">
+              <Trash2 size={40} className="text-rose-500" />
+            </div>
+
+            <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 text-center mb-2">Hapus Agenda?</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center leading-relaxed px-4 mb-8">
+              Tindakan ini tidak dapat dibatalkan. Pendaftaran & data terkait event ini akan <span className="text-rose-500 font-black">terhapus permanen</span>.
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => deleteEvent(deleteConfirmId)}
+                disabled={loading}
+                className="w-full bg-rose-600 text-white px-8 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-rose-700 transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl shadow-rose-100"
+              >
+                {loading ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Ya, Hapus Sekarang
+              </button>
+              <button 
+                onClick={() => setDeleteConfirmId(null)}
+                className="w-full bg-white text-slate-400 border border-slate-100 px-8 py-4 rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-50 transition-all text-center"
+              >
+                Batalkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Branch Modal */}
       {showBranchModal && (

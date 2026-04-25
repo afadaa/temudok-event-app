@@ -158,14 +158,17 @@ async function startServer() {
     try {
       const validatedData = RegistrationSchema.parse(req.body);
 
-      // Check if email already registered
+      // Check if email already registered for THIS event
       let existingRef;
       try {
-        const q = query(collection(db, 'registrations'), where('email', '==', validatedData.email), where('status', 'in', ['settlement', 'capture']));
+        const q = query(
+          collection(db, 'registrations'), 
+          where('email', '==', validatedData.email), 
+          where('eventId', '==', validatedData.eventId)
+        );
         existingRef = await getDocs(q);
       } catch (dbError: any) {
         console.error('Database Error during registration check:', dbError);
-        // If it's a permission error, it might be the database setup
         if (dbError.message?.includes('PERMISSION_DENIED')) {
           return res.status(500).json({ 
             message: 'Terjadi kendala pada koneksi database (Permission Denied). Silakan lapor ke panitia.' 
@@ -175,9 +178,20 @@ async function startServer() {
       }
 
       if (!existingRef.empty) {
-        return res.status(400).json({ 
-          message: 'Email ini sudah terdaftar. Silakan cek email Anda untuk e-tiket atau hubungi panitia jika ada kendala.' 
-        });
+        const existingDoc = existingRef.docs[0];
+        const existingData = existingDoc.data();
+
+        // If already paid, block new registration
+        if (['settlement', 'capture'].includes(existingData.status)) {
+          return res.status(400).json({ 
+            message: 'Email ini sudah terdaftar dan pembayaran telah dikonfirmasi. Silakan cek email Anda untuk e-tiket.' 
+          });
+        }
+
+        // If not paid (pending/expire/cancel), delete the old one to avoid duplicates in dashboard
+        // and allow fresh registration with updated data
+        console.log(`Cleaning up previous incomplete registration (${existingData.status}) for ${validatedData.email}`);
+        await deleteDoc(existingDoc.ref);
       }
 
       const orderId = `${req.body.eventId || 'MUSWIL'}-${Date.now()}`;
