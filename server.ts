@@ -358,7 +358,8 @@ async function startServer() {
           payment_type: 'free/dummy',
           order_id: orderId,
           custom_field1: regData.fullName,
-          custom_field2: regData.category
+          custom_field2: regData.category,
+          photoUrl: regData.photoUrl || ''
         });
       }
 
@@ -378,6 +379,7 @@ async function startServer() {
           ...statusResponse,
           gross_amount: regData.amount,
           transaction_time: regData.createdAt,
+          photoUrl: regData.photoUrl || ''
         });
       } catch (midtransError: any) {
         console.warn('Midtrans status fetch warn (returning local DB status):', midtransError.message);
@@ -387,12 +389,39 @@ async function startServer() {
           transaction_time: regData.createdAt,
           order_id: orderId,
           custom_field1: regData.fullName,
-          custom_field2: regData.category
+          custom_field2: regData.category,
+          photoUrl: regData.photoUrl || ''
         });
       }
     } catch (error) {
       console.error('Fetch Status Error:', error);
       res.status(500).json({ error: 'Gagal mengambil status' });
+    }
+  });
+
+  app.post('/api/update-photo', async (req, res) => {
+    try {
+      const { orderId, photoUrl } = req.body;
+      if (!orderId || !photoUrl) {
+        return res.status(400).json({ error: 'Order ID dan Foto wajib diisi' });
+      }
+
+      const docRef = doc(db, 'registrations', orderId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+      }
+
+      await updateDoc(docRef, {
+        photoUrl,
+        updatedAt: new Date().toISOString()
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Update Photo Error:', error);
+      res.status(500).json({ error: 'Gagal mengunggah foto' });
     }
   });
 

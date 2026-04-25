@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, Hash, CreditCard, ChevronRight, Loader2, AlertCircle, MapPin } from 'lucide-react';
+import { User, Mail, Phone, Hash, CreditCard, ChevronRight, Loader2, AlertCircle, MapPin, Camera, X } from 'lucide-react';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import Select, { components } from 'react-select';
@@ -237,10 +237,11 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Cabang IDI (Opsional)</label>
-        <div className="relative">
-          <Select
+      <div className="grid md:grid-cols-2 gap-5 items-end">
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Cabang IDI (Opsional)</label>
+          <div className="relative">
+            <Select
             options={branches.map(b => ({ value: b.id, label: b.name }))}
             placeholder="Pilih atau Cari Cabang IDI"
             isSearchable
@@ -300,6 +301,7 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
           />
         </div>
       </div>
+    </div>
 
       <div className="space-y-3">
         <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Kategori Keanggotaan</label>

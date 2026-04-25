@@ -7,9 +7,10 @@ import QRCode from 'qrcode';
 interface CheckStatusProps {
   onBack: () => void;
   initialOrderId?: string;
+  onStatusSuccess?: (data: any) => void;
 }
 
-export function CheckStatus({ onBack, initialOrderId }: CheckStatusProps) {
+export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckStatusProps) {
   const [orderId, setOrderId] = useState(initialOrderId || '');
   const [loading, setLoading] = useState(false);
   const [statusData, setStatusData] = useState<any>(null);
@@ -42,19 +43,13 @@ export function CheckStatus({ onBack, initialOrderId }: CheckStatusProps) {
         throw new Error('Order ID tidak ditemukan atau terjadi kesalahan.');
       }
       const data = await response.json();
-      setStatusData(data);
       
-      // If paid, prep QR code
-      if (data.transaction_status === 'settlement' || data.transaction_status === 'capture') {
-        const qrText = JSON.stringify({
-          id: data.order_id,
-          name: data.custom_field1 || 'Peserta',
-          cat: data.custom_field2 || 'delegate',
-          event: 'MUSWIL IDI KALTIM 2026'
-        });
-        const url = await QRCode.toDataURL(qrText);
-        setQrCodeUrl(url);
+      if (onStatusSuccess) {
+        onStatusSuccess(data);
+        return;
       }
+
+      setStatusData(data);
     } catch (err: any) {
       setError(err.message);
     } finally {

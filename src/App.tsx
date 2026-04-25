@@ -14,9 +14,12 @@ function MainApp() {
   const [showForm, setShowForm] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [view, setView] = useState<'registration' | 'status'>('registration');
-  const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string } | null>(null);
+  const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string, photoUrl?: string } | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [pendingOrderId, setPendingOrderId] = useState<string | undefined>(undefined);
+
+  const [showStatusResult, setShowStatusResult] = useState(false);
+  const [statusResultData, setStatusResultData] = useState<any>(null);
 
   const openForm = (v: 'registration' | 'status') => {
     setView(v);
@@ -24,7 +27,7 @@ function MainApp() {
     setPendingOrderId(undefined);
   };
 
-  const handleSuccess = async (data: { fullName: string, email: string, category: string, orderId?: string }) => {
+  const handleSuccess = async (data: { fullName: string, email: string, category: string, orderId?: string, photoUrl?: string }) => {
     setRegData(data);
     const qrText = JSON.stringify({
       id: data.orderId,
@@ -40,6 +43,44 @@ function MainApp() {
     } catch (err) {
       console.error('QR Gen error', err);
       setIsSuccess(true);
+    }
+  };
+
+  const handleStatusFound = async (data: any) => {
+    // Hide status check modal first
+    setShowForm(false);
+    
+    if (data.transaction_status === 'settlement' || data.transaction_status === 'capture') {
+      setRegData({
+        fullName: data.custom_field1 || 'Peserta',
+        email: '',
+        category: data.custom_field2 || 'Peserta',
+        orderId: data.order_id,
+        photoUrl: data.photoUrl
+      });
+
+      const qrText = JSON.stringify({
+        id: data.order_id,
+        name: data.custom_field1 || 'Peserta',
+        cat: data.custom_field2 || 'Peserta',
+        event: 'MUSWIL IDI KALTIM 2026'
+      });
+
+      try {
+        const url = await QRCode.toDataURL(qrText);
+        setQrCodeUrl(url);
+        setIsSuccess(true);
+        setView('registration');
+        setShowForm(true);
+      } catch (err) {
+        setIsSuccess(true);
+        setView('registration');
+        setShowForm(true);
+      }
+    } else {
+      // For pending or other status, we show a simplified status info modal
+      setStatusResultData(data);
+      setShowStatusResult(true);
     }
   };
 
@@ -256,9 +297,71 @@ function MainApp() {
                       regData && <TicketDownload data={regData} qrCodeUrl={qrCodeUrl} />
                     )
                   ) : (
-                    <CheckStatus onBack={() => setShowForm(false)} initialOrderId={pendingOrderId} />
+                    <CheckStatus 
+                      onBack={() => setShowForm(false)} 
+                      initialOrderId={pendingOrderId} 
+                      onStatusSuccess={handleStatusFound}
+                    />
                   )}
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showStatusResult && statusResultData && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/95 backdrop-blur-md"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-8 relative"
+            >
+              <button 
+                onClick={() => setShowStatusResult(false)}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="text-center">
+                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  {statusResultData.transaction_status === 'pending' ? (
+                    <div className="w-8 h-8 rounded-full border-4 border-amber-500 border-t-transparent animate-spin"></div>
+                  ) : (
+                    <X className="text-red-500" size={32} />
+                  )}
+                </div>
+
+                <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 mb-2">Status Pembayaran</h3>
+                <p className="text-sm text-slate-400 mb-8 uppercase font-bold tracking-widest">{statusResultData.transaction_status}</p>
+
+                <div className="space-y-4 text-left mb-8">
+                  <div className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Order ID</span>
+                    <span className="font-bold text-xs">{statusResultData.order_id}</span>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nama</span>
+                    <span className="font-bold text-xs">{statusResultData.custom_field1}</span>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total</span>
+                    <span className="font-black text-emerald-600">Rp {Number(statusResultData.gross_amount).toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowStatusResult(false)}
+                  className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all"
+                >
+                  Tutup
+                </button>
               </div>
             </motion.div>
           </motion.div>

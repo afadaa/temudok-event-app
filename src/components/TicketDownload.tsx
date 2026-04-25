@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Download, CheckCircle2, Ticket } from 'lucide-react';
+import { Download, CheckCircle2, Ticket, RefreshCw, Image as ImageIcon, Camera, Upload } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+import { toCanvas } from 'html-to-image';
+import { toast } from 'sonner';
 
 interface TicketDownloadProps {
   data: {
@@ -9,6 +10,7 @@ interface TicketDownloadProps {
     email: string;
     category: string;
     orderId?: string;
+    photoUrl?: string;
   };
   qrCodeUrl: string;
 }
@@ -16,18 +18,76 @@ interface TicketDownloadProps {
 export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
   const ticketRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingImg, setIsExportingImg] = useState(false);
+  const [localPhotoUrl, setLocalPhotoUrl] = useState(data.photoUrl || '');
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !data.orderId) return;
+
+    if (file.size > 1024 * 1024) {
+      toast.error('Ukuran foto maksimal 1MB');
+      return;
+    }
+
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Photo = reader.result as string;
+      try {
+        const response = await fetch('/api/update-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: data.orderId, photoUrl: base64Photo }),
+        });
+
+        if (response.ok) {
+          setLocalPhotoUrl(base64Photo);
+          toast.success('Foto berhasil diunggah');
+        } else {
+          toast.error('Gagal mengunggah foto');
+        }
+      } catch (error) {
+        toast.error('Terjadi kesalahan saat mengunggah foto');
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const downloadImage = async () => {
+    if (!ticketRef.current) return;
+    setIsExportingImg(true);
+    try {
+      const canvas = await toCanvas(ticketRef.current, {
+        pixelRatio: 4,
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+      });
+      const link = document.createElement('a');
+      link.download = `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.png`;
+      link.href = canvas.toDataURL('image/png', 1.0);
+      link.click();
+    } catch (error) {
+      console.error('Image Generation Error:', error);
+      alert('Gagal mengunduh Gambar. Silakan coba lagi.');
+    } finally {
+      setIsExportingImg(false);
+    }
+  };
 
   const downloadPDF = async () => {
     if (!ticketRef.current) return;
     setIsExporting(true);
 
     try {
-      // Capture at high resolution for quality
-      const canvas = await html2canvas(ticketRef.current, {
-        scale: 4, // Higher scale for better print quality
+      // html-to-image is generally better at ignoring unsupported CSS functions or handling them gracefully
+      const canvas = await toCanvas(ticketRef.current, {
+        pixelRatio: 3, // High quality scale
         backgroundColor: '#ffffff',
-        useCORS: true,
-        logging: false
+        cacheBust: true,
       });
 
       const imgData = canvas.toDataURL('image/png', 1.0);
@@ -117,24 +177,26 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
               </div>
             </div>
 
-            {/* QR Code Section */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div style={{ padding: '0.5rem', border: '1px solid #f1f5f9', borderRadius: '1rem', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+            {/* Photo & QR Code Section */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1rem' }}>
+              {localPhotoUrl ? (
+                <div style={{ padding: '0.375rem', border: '1px solid #f1f5f9', borderRadius: '0.75rem', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <img src={localPhotoUrl} alt="Photo" style={{ width: '6.5rem', height: '6.5rem', objectFit: 'cover', borderRadius: '0.5rem', display: 'block' }} />
+                </div>
+              ) : (
+                <div style={{ width: '7.25rem', height: '7.25rem', border: '2px dashed #e2e8f0', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center', padding: '0.5rem' }}>Foto Belum Diunggah</span>
+                </div>
+              )}
+              <div style={{ padding: '0.375rem', border: '1px solid #f1f5f9', borderRadius: '0.75rem', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
                 <img src={qrCodeUrl} alt="QR" style={{ width: '6.5rem', height: '6.5rem', display: 'block' }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                   <div style={{ width: '0.25rem', height: '0.25rem', backgroundColor: '#10b981', borderRadius: '9999px' }}></div>
-                   <p style={{ fontSize: '8px', fontWeight: 900, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Verified Digital Token</p>
-                 </div>
-              </div>
             </div>
-
-            {/* Footer Text */}
-            <div style={{ width: '100%', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
-              <p style={{ fontSize: '7px', fontWeight: 800, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                Diterbitkan secara elektronik oleh Panitia Muswil IDI Kaltim 2026
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                 <div style={{ width: '0.25rem', height: '0.25rem', backgroundColor: '#10b981', borderRadius: '9999px' }}></div>
+                 <p style={{ fontSize: '8px', fontWeight: 900, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Verified Access</p>
+               </div>
             </div>
           </div>
           
@@ -144,18 +206,46 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
       </div>
 
       <div className="flex flex-col gap-3">
+        {!localPhotoUrl && (
+          <div className="mb-2">
+            <label className="w-full flex items-center justify-center gap-3 bg-emerald-50 border-2 border-dashed border-emerald-200 py-4 rounded-2xl cursor-pointer hover:bg-emerald-100 transition-all group">
+              {isUploading ? <RefreshCw size={20} className="animate-spin text-emerald-600" /> : <Camera size={20} className="text-emerald-600 group-hover:scale-110 transition-transform" />}
+              <div className="flex flex-col items-start leading-tight">
+                <span className="text-[11px] font-black text-emerald-700 uppercase tracking-wider">Unggah Foto Peserta</span>
+                <span className="text-[9px] font-bold text-emerald-500 uppercase">Wajib untuk kartu peserta</span>
+              </div>
+              <input type="file" className="hidden" accept="image/png, image/jpeg, image/jpg" onChange={handlePhotoUpload} disabled={isUploading} />
+            </label>
+          </div>
+        )}
+
         <button 
           onClick={downloadPDF}
-          disabled={isExporting}
+          disabled={isExporting || isExportingImg || isUploading || !localPhotoUrl}
           className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Download size={20} />
-          <span>{isExporting ? 'Menyiapkan Tiket...' : 'Unduh Kartu Peserta (PDF)'}</span>
+          {isExporting ? <RefreshCw size={20} className="animate-spin" /> : <Download size={20} />}
+          <span>{isExporting ? 'Menyiapkan PDF...' : 'Unduh Kartu Peserta (PDF)'}</span>
+        </button>
+
+        <button 
+          onClick={downloadImage}
+          disabled={isExporting || isExportingImg || isUploading || !localPhotoUrl}
+          className="w-full bg-white border-2 border-slate-900 text-slate-900 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isExportingImg ? <RefreshCw size={20} className="animate-spin" /> : <ImageIcon size={20} />}
+          <span>{isExportingImg ? 'Menyiapkan Gambar...' : 'Unduh Kartu Peserta (PNG)'}</span>
         </button>
         
-        <p className="text-[10px] text-slate-400 text-center font-medium">
-          Simpan file PDF ini untuk ditukarkan dengan ID Card fisik di hari H.
-        </p>
+        {!localPhotoUrl ? (
+          <p className="text-[10px] text-amber-600 text-center font-black px-4 bg-amber-50 py-2 rounded-lg border border-amber-100 uppercase tracking-tighter">
+            Silakan unggah foto terlebih dahulu untuk mengunduh kartu.
+          </p>
+        ) : (
+          <p className="text-[10px] text-slate-400 text-center font-bold px-4">
+            Simpan file PDF atau Gambar ini untuk ditukarkan dengan ID Card fisik di lokasi acara.
+          </p>
+        )}
       </div>
     </div>
   );

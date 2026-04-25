@@ -26,6 +26,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [categories, setCategories] = useState<Category[]>([]);
   
   const [loading, setLoading] = useState(false);
+  const [loadingExport, setLoadingExport] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -116,10 +117,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const deleteBranch = async (id: string) => {
     if (!window.confirm("Hapus cabang ini?")) return;
+    setLoading(true);
     try {
       const res = await fetch(`/api/admin/branches/${id}`, { method: 'DELETE', headers: authHeaders });
       if (res.ok) { toast.success('Terhapus'); fetchBranchesAndCategories(); }
     } catch(e) { toast.error('Error'); }
+    finally { setLoading(false); }
   };
 
   // Category Handlers
@@ -160,10 +163,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const deleteCategory = async (id: string) => {
     if (!window.confirm("Hapus kategori ini?")) return;
+    setLoading(true);
     try {
       const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE', headers: authHeaders });
       if (res.ok) { toast.success('Terhapus'); fetchBranchesAndCategories(); }
     } catch(e) { toast.error('Error'); }
+    finally { setLoading(false); }
   };
 
   const filteredRegistrants = registrants.filter(r => {
@@ -173,39 +178,48 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     return matchSearch && matchCat && matchStatus;
   });
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (filteredRegistrants.length === 0) {
       toast.error('Tidak ada data untuk diekspor');
       return;
     }
 
-    const dataToExport = filteredRegistrants.map(r => ({
-      'ID Pesanan': r.id,
-      'Nama Lengkap': r.fullName,
-      'Email': r.email,
-      'WhatsApp': r.phone,
-      'NPA IDI': r.npa || '-',
-      'Kategori': r.category,
-      'Cabang IDI': branches.find(b => b.id === r.branchId)?.name || r.branchId || '-',
-      'Status': r.status,
-      'Total Bayar': r.amount,
-      'Tgl Daftar': new Date(r.createdAt).toLocaleString('id-ID')
-    }));
+    setLoadingExport(true);
+    // Give a small delay to allow spinner to show
+    await new Promise(r => setTimeout(r, 500));
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Registrants');
-    
-    // Set column widths
-    const wscols = [
-      { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, 
-      { wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, 
-      { wch: 15 }, { wch: 25 }
-    ];
-    worksheet['!cols'] = wscols;
+    try {
+      const dataToExport = filteredRegistrants.map(r => ({
+        'ID Pesanan': r.id,
+        'Nama Lengkap': r.fullName,
+        'Email': r.email,
+        'WhatsApp': r.phone,
+        'NPA IDI': r.npa || '-',
+        'Kategori': r.category,
+        'Cabang IDI': branches.find(b => b.id === r.branchId)?.name || r.branchId || '-',
+        'Status': r.status,
+        'Total Bayar': r.amount,
+        'Tgl Daftar': new Date(r.createdAt).toLocaleString('id-ID')
+      }));
 
-    XLSX.writeFile(workbook, `registrasi-muswil-${new Date().toISOString().split('T')[0]}.xlsx`);
-    toast.success('Data berhasil diekspor ke Excel');
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Registrants');
+      
+      const wscols = [
+        { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, 
+        { wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, 
+        { wch: 15 }, { wch: 25 }
+      ];
+      worksheet['!cols'] = wscols;
+
+      XLSX.writeFile(workbook, `registrasi-muswil-${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('Data berhasil diekspor ke Excel');
+    } catch (e) {
+      toast.error('Gagal mengekspor data');
+    } finally {
+      setLoadingExport(false);
+    }
   };
 
   if (!isAuthorized) {
@@ -303,10 +317,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                 <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Data Pendaftar</h2>
                 <div className="flex items-center gap-3">
                   <button 
+                    disabled={loadingExport}
                     onClick={handleExport}
-                    className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-emerald-600 uppercase tracking-widest hover:border-emerald-600 hover:bg-emerald-50 transition-all"
+                    className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-emerald-600 uppercase tracking-widest hover:border-emerald-600 hover:bg-emerald-50 transition-all disabled:opacity-50"
                   >
-                    <FileDown size={14} /> Ekspor Excel
+                    {loadingExport ? <RefreshCw size={14} className="animate-spin" /> : <FileDown size={14} />} 
+                    {loadingExport ? 'Mengekspor...' : 'Ekspor Excel'}
                   </button>
                   <button onClick={fetchRegistrants} className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300">
                     <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -474,8 +490,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                 <button 
                   type="submit" 
                   disabled={loading || !branchName.trim()}
-                  className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50"
+                  className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
+                  {loading ? <RefreshCw size={16} className="animate-spin" /> : null}
                   {loading ? 'Menyimpan...' : 'Simpan'}
                 </button>
               </div>
@@ -524,8 +541,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                 <button 
                   type="submit" 
                   disabled={loading || !categoryName.trim()}
-                  className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50"
+                  className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
+                  {loading ? <RefreshCw size={16} className="animate-spin" /> : null}
                   {loading ? 'Menyimpan...' : 'Simpan'}
                 </button>
               </div>
