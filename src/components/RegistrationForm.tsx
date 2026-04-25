@@ -8,6 +8,12 @@ interface RegistrationFormProps {
   onSuccess: (data: { fullName: string, email: string, category: string, orderId?: string }) => void;
   onPending: (data: { orderId: string }) => void;
   selectedEventId: string;
+  // optional full event object; if provided we'll use its categories directly
+  selectedEvent?: {
+    id: string;
+    title?: string;
+    categories?: { id: string; name: string; price: number }[];
+  };
 }
 
 const RegistrationSchema = z.object({
@@ -29,7 +35,7 @@ declare global {
   }
 }
 
-export function RegistrationForm({ onSuccess, onPending, selectedEventId }: RegistrationFormProps) {
+export function RegistrationForm({ onSuccess, onPending, selectedEventId, selectedEvent }: RegistrationFormProps) {
   const [loading, setLoading] = useState(false);
   const [loadingDefs, setLoadingDefs] = useState(true);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -48,32 +54,31 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
 
   useEffect(() => {
     setLoadingDefs(true);
-    // Fetch branches globally, but fetch only the selected event (not all events)
-    const promises: Promise<any>[] = [fetch('/api/branches')];
-    if (selectedEventId) promises.push(fetch(`/api/events/${selectedEventId}`));
+    // Prefer categories from selectedEvent prop when available (avoids extra fetch)
+    (async () => {
+      try {
+        const resB = await fetch('/api/branches');
+        if (resB.ok) setBranches(await resB.json());
 
-    Promise.all(promises)
-      .then(async (results) => {
-        const resB = results[0];
-        if (resB && resB.ok) setBranches(await resB.json());
-
-        if (selectedEventId && results[1]) {
-          const resE = results[1];
+        if ((selectedEvent && selectedEvent.categories && selectedEvent.categories.length) ) {
+          setCategories(selectedEvent.categories);
+          if (selectedEvent.categories.length > 0) setFormData(p => ({ ...p, category: selectedEvent.categories[0].id }));
+        } else if (selectedEventId) {
+          const resE = await fetch(`/api/events/${selectedEventId}`);
           if (resE.ok) {
             const event: any = await resE.json();
             if (event && event.categories) {
               setCategories(event.categories);
-              if (event.categories.length > 0) {
-                setFormData(p => ({ ...p, category: event.categories[0].id }));
-              }
+              if (event.categories.length > 0) setFormData(p => ({ ...p, category: event.categories[0].id }));
             }
           } else {
-            // If single event fetch fails, clear categories
             setCategories([]);
           }
         }
-      })
-      .finally(() => setLoadingDefs(false));
+      } finally {
+        setLoadingDefs(false);
+      }
+    })();
   }, [selectedEventId]);
 
   const validate = () => {

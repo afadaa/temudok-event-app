@@ -379,6 +379,7 @@ function MainApp() {
                           onSuccess={handleSuccess}
                           onPending={handlePending}
                           selectedEventId={activeEvent.id}
+                          selectedEvent={activeEvent}
                         />
                       </>
                     ) : (

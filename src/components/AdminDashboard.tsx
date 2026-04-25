@@ -685,7 +685,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     <thead>
                       <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
                         <th className="p-4 rounded-tl-xl text-[9px]">Nama Kategori</th>
-                        <th className="p-4 text-[9px]">Tarif (Rp)</th>
                         <th className="p-4 rounded-tr-xl w-32 text-right text-[9px]">Aksi</th>
                       </tr>
                     </thead>
@@ -693,11 +692,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                       {categories.filter(c => c.name.toLowerCase().includes(catSearch.toLowerCase())).map(c => (
                         <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="p-4 font-bold text-sm text-slate-700">{c.name}</td>
-                          <td className="p-4">
-                            <span className="font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg text-xs">
-                              {c.price === 0 ? 'Gratis' : `Rp ${c.price.toLocaleString('id-ID')}`}
-                            </span>
-                          </td>
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <button onClick={() => handleEditCategory(c)} className="text-amber-500 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50 transition-all" title="Edit"><Edit size={16} /></button>
@@ -949,27 +943,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   placeholder="Nama pendaftar (e.g. Peserta Umum)"
                   autoFocus
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">Tarif Standar (Rp)</label>
-                <div className="relative group">
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
-                    <span className="text-[10px] font-black text-slate-400 group-focus-within:text-emerald-600 transition-colors">Rp</span>
-                  </div>
-                  <input 
-                    type="number" 
-                    value={categoryPrice} 
-                    onChange={e => setCategoryPrice(Number(e.target.value))}
-                    className="w-full pl-14 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 focus:bg-white outline-none font-bold text-slate-800 transition-all placeholder:text-slate-300"
-                    placeholder="0"
-                  />
-                  {categoryPrice === 0 && (
-                    <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-md">Free</span>
-                    </div>
-                  )}
-                </div>
               </div>
 
               <div className="flex pt-4">
