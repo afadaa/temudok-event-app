@@ -5,24 +5,55 @@
       "description": "Attendee registration record",
       "type": "object",
       "properties": {
-        "orderId": { "type": "string" },
+        "id": { "type": "string" },
         "fullName": { "type": "string" },
         "email": { "type": "string" },
         "phone": { "type": "string" },
         "npa": { "type": "string" },
-        "category": { "type": "string", "enum": ["guest", "delegate"] },
+        "category": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "branchId": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "settlement", "capture", "expire", "cancel", "deny"] },
         "amount": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["orderId", "fullName", "email", "category", "status"]
+      "required": ["fullName", "email", "category", "status"]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "IDI Branch office",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Membership category and price",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price"]
     }
   },
   "firestore": {
-    "registrations/{orderId}": {
+    "registrations/{id}": {
       "schema": "Registration",
-      "description": "Collection of event registrations indexed by order ID"
+      "description": "Collection of event registrations"
+    },
+    "branches/{branchId}": {
+      "schema": "Branch",
+      "description": "IDI Branch offices"
+    },
+    "categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Membership categories"
     }
   }
 }

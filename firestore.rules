@@ -1,22 +1,51 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;
     }
 
+    // Admins are stored in this collection for the custom bcrypt auth in server.ts
+    // The server needs to read this to verify password.
     match /admins/{username} {
       allow read: if true;
-      allow write: if true;
+      allow write: if false; // Only manageable via Firebase Console or special script
     }
 
-    // Registrations collection
-    // We allow read by ID if the requester knows the orderId (security by ID knowledge for now, since it's a public form)
-    // In a real app, we might want to restrict this better, but for checking status it's okay.
-    match /registrations/{orderId} {
-      allow read: if true; 
-      allow write: if true; // Using client SDK from backend requires truthy rules without auth for now
+    // Registrations
+    match /registrations/{id} {
+      function isValidRegistration(data) {
+        return data.fullName is string && data.fullName.size() <= 200
+            && data.email is string && data.email.size() <= 200
+            && data.status in ['pending', 'settlement', 'capture', 'expire', 'cancel', 'deny', 'failure'];
+      }
+
+      allow get, list: if true; // Public can check status if they have ID, list allowed for admin panel (server-side)
+      allow create: if isValidRegistration(incoming());
+      allow update: if isValidRegistration(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'transactionId', 'paymentType'])
+      );
+    }
+
+    // Branches
+    match /branches/{branchId} {
+      allow read: if true; // Public needs this for the registration form
+      allow write: if true; // Managed by server.ts which has requireAdmin middleware
+    }
+
+    // Categories
+    match /categories/{categoryId} {
+      allow read: if true; // Public needs this for the registration form
+      allow write: if true; // Managed by server.ts which has requireAdmin middleware
     }
   }
 }

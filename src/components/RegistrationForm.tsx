@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, Hash, CreditCard, ChevronRight, Loader2, AlertCircle, MapPin } from 'lucide-react';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import Select, { components } from 'react-select';
 
 interface RegistrationFormProps {
   onSuccess: (data: { fullName: string, email: string, category: string, orderId?: string }) => void;
@@ -239,15 +240,64 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
       <div className="space-y-1.5">
         <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Cabang IDI (Opsional)</label>
         <div className="relative">
-          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={16} />
-          <select 
-            className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all font-medium text-sm appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[position:right_1rem_center] bg-[size:1.2em] bg-no-repeat"
-            value={formData.branchId}
-            onChange={(e) => handleChange('branchId', e.target.value)}
-          >
-            <option value="">Pilih Cabang IDI</option>
-            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
+          <Select
+            options={branches.map(b => ({ value: b.id, label: b.name }))}
+            placeholder="Pilih atau Cari Cabang IDI"
+            isSearchable
+            isClearable
+            value={formData.branchId ? { value: formData.branchId, label: branches.find(b => b.id === formData.branchId)?.name || '' } : null}
+            onChange={(option) => handleChange('branchId', option ? (option as any).value : '')}
+            styles={{
+              control: (base, state) => ({
+                ...base,
+                backgroundColor: '#f8fafc',
+                borderColor: state.isFocused ? '#059669' : '#e2e8f0',
+                borderRadius: '0.75rem',
+                padding: '0.5rem 0.5rem 0.5rem 2.25rem',
+                boxShadow: state.isFocused ? '0 0 0 1px #059669' : 'none',
+                '&:hover': {
+                  borderColor: state.isFocused ? '#059669' : '#cbd5e1'
+                }
+              }),
+              placeholder: (base) => ({
+                ...base,
+                color: '#94a3b8',
+                fontSize: '0.875rem',
+                fontWeight: 500
+              }),
+              singleValue: (base) => ({
+                ...base,
+                color: '#334155',
+                fontSize: '0.875rem',
+                fontWeight: 500
+              }),
+              input: (base) => ({
+                ...base,
+                fontSize: '0.875rem',
+                fontWeight: 500
+              }),
+              option: (base, state) => ({
+                ...base,
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                backgroundColor: state.isSelected ? '#059669' : state.isFocused ? '#ecfdf5' : 'white',
+                color: state.isSelected ? 'white' : '#334155',
+                '&:active': {
+                  backgroundColor: '#059669'
+                }
+              })
+            }}
+            components={{
+              DropdownIndicator: () => null,
+              IndicatorSeparator: () => null,
+              Control: ({ children, ...props }) => (
+                <components.Control {...props}>
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none z-10" size={16} />
+                  {children}
+                </components.Control>
+              )
+            }}
+          />
         </div>
       </div>
 

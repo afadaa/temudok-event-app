@@ -18,22 +18,41 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Firebase Client Setup
-const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
+let firebaseConfig: any;
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  }
+} catch (e) {
+  console.warn('Could not read firebase-applet-config.json, relying on environment variables');
+}
+
+// Override with .env if present
+const config = {
+  apiKey: process.env.FIREBASE_API_KEY || firebaseConfig?.apiKey,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || firebaseConfig?.authDomain,
+  projectId: process.env.FIREBASE_PROJECT_ID || firebaseConfig?.projectId,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || firebaseConfig?.storageBucket,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || firebaseConfig?.messagingSenderId,
+  appId: process.env.FIREBASE_APP_ID || firebaseConfig?.appId,
+  firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || firebaseConfig?.firestoreDatabaseId,
+};
 
 // Initialize Firebase App
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+const firebaseApp = initializeApp(config);
+const db = getFirestore(firebaseApp, config.firestoreDatabaseId);
 
 // Test connection and Seed Admin
 (async () => {
   try {
-    console.log(`Testing Firestore connection (Project: ${firebaseConfig.projectId}, DB: ${firebaseConfig.firestoreDatabaseId || '(default)'})...`);
+    console.log(`Testing Firestore connection (Project: ${config.projectId}, DB: ${config.firestoreDatabaseId || '(default)'})...`);
     await getDocs(query(collection(db, 'registrations'), where('__name__', '==', 'test')));
     console.log('Firestore connection verified');
     
     // Seed Admin User
-    const adminUsername = 'adminidikaltim2026';
-    const plainPassword = '1d1k4lt!m2026';
+    const adminUsername = process.env.ADMIN_USERNAME || 'adminidikaltim2026';
+    const plainPassword = process.env.ADMIN_PASSWORD || '1d1k4lt!m2026';
     const adminRef = doc(db, 'admins', adminUsername);
     const adminSnap = await getDoc(adminRef);
 

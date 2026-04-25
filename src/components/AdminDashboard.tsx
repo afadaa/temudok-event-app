@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit } from 'lucide-react';
+import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 interface Registrant {
   id: string;
   fullName: string;
   email: string;
   phone: string;
+  npa?: string;
   category: string;
   categoryId: string;
   branchId: string;
@@ -171,6 +173,41 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     return matchSearch && matchCat && matchStatus;
   });
 
+  const handleExport = () => {
+    if (filteredRegistrants.length === 0) {
+      toast.error('Tidak ada data untuk diekspor');
+      return;
+    }
+
+    const dataToExport = filteredRegistrants.map(r => ({
+      'ID Pesanan': r.id,
+      'Nama Lengkap': r.fullName,
+      'Email': r.email,
+      'WhatsApp': r.phone,
+      'NPA IDI': r.npa || '-',
+      'Kategori': r.category,
+      'Cabang IDI': branches.find(b => b.id === r.branchId)?.name || r.branchId || '-',
+      'Status': r.status,
+      'Total Bayar': r.amount,
+      'Tgl Daftar': new Date(r.createdAt).toLocaleString('id-ID')
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Registrants');
+    
+    // Set column widths
+    const wscols = [
+      { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, 
+      { wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, 
+      { wch: 15 }, { wch: 25 }
+    ];
+    worksheet['!cols'] = wscols;
+
+    XLSX.writeFile(workbook, `registrasi-muswil-${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success('Data berhasil diekspor ke Excel');
+  };
+
   if (!isAuthorized) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -264,9 +301,17 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Data Pendaftar</h2>
-                <button onClick={fetchRegistrants} className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300">
-                  <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
-                </button>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handleExport}
+                    className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-emerald-600 uppercase tracking-widest hover:border-emerald-600 hover:bg-emerald-50 transition-all"
+                  >
+                    <FileDown size={14} /> Ekspor Excel
+                  </button>
+                  <button onClick={fetchRegistrants} className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300">
+                    <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+                  </button>
+                </div>
               </div>
 
               {/* Filters */}

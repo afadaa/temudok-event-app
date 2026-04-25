@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Stethoscope, Calendar, MapPin, Users, CheckCircle2, ChevronRight, X, Mail, Phone, CreditCard, Search } from 'lucide-react';
 import { RegistrationForm } from './components/RegistrationForm';
@@ -8,10 +9,11 @@ import { AdminDashboard } from './components/AdminDashboard';
 import QRCode from 'qrcode';
 import { Toaster, toast } from 'sonner';
 
-export default function App() {
+function MainApp() {
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [view, setView] = useState<'registration' | 'status' | 'admin'>('registration');
+  const [view, setView] = useState<'registration' | 'status'>('registration');
   const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string } | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [pendingOrderId, setPendingOrderId] = useState<string | undefined>(undefined);
@@ -19,13 +21,11 @@ export default function App() {
   const openForm = (v: 'registration' | 'status') => {
     setView(v);
     setShowForm(true);
-    setPendingOrderId(undefined); // Clear pending order ID on manual open
+    setPendingOrderId(undefined);
   };
 
   const handleSuccess = async (data: { fullName: string, email: string, category: string, orderId?: string }) => {
     setRegData(data);
-    
-    // Generate QR Code on client side
     const qrText = JSON.stringify({
       id: data.orderId,
       name: data.fullName,
@@ -39,13 +39,12 @@ export default function App() {
       setIsSuccess(true);
     } catch (err) {
       console.error('QR Gen error', err);
-      setIsSuccess(true); // Still proceed without QR if it fails
+      setIsSuccess(true);
     }
   };
 
   const handlePending = (data: { orderId: string }) => {
-    // If pending, instruct the user to check their status using CheckStatus view
-    toast.info('Status pembayaran masih pending (Menunggu Pembayaran). Anda dapat mengecek status pembayaran melalui Cek Status.', {
+    toast.info('Status pembayaran masih pending. Cek status melalui menu Cek Status.', {
       duration: 8000,
     });
     setPendingOrderId(data.orderId);
@@ -59,19 +58,8 @@ export default function App() {
     setQrCodeUrl('');
   };
 
-  if (view === 'admin') {
-    return (
-      <div className="min-h-screen bg-slate-50 font-sans">
-        <Toaster position="top-center" richColors />
-        <AdminDashboard onBack={() => setView('registration')} />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col">
-      <Toaster position="top-center" richColors />
-      {/* Header Navigation */}
       <nav className="h-20 border-b border-slate-200 bg-white px-6 md:px-12 flex items-center justify-between shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-emerald-600/20">
@@ -103,7 +91,6 @@ export default function App() {
       </nav>
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-6 md:p-12 flex flex-col gap-12 md:gap-20">
-        {/* Hero & Register Card Section */}
         <section className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center pt-8">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -193,7 +180,6 @@ export default function App() {
           </motion.div>
         </section>
 
-        {/* Features Row */}
         <section className="grid md:grid-cols-3 gap-8">
           {[
             { id: 1, title: 'Pembayaran Aman', desc: 'Integrasi Midtrans untuk berbagai pilihan metode pembayaran digital tanpa ribet.', icon: CreditCard },
@@ -213,7 +199,6 @@ export default function App() {
         </section>
       </main>
 
-      {/* Footer Bar */}
       <footer className="h-auto md:h-20 bg-slate-900 text-slate-500 px-6 md:px-12 py-8 flex flex-col md:flex-row items-center justify-between text-[10px] uppercase font-black tracking-[0.2em] shrink-0 mt-auto">
         <div className="flex flex-col gap-2 mb-6 md:mb-0 text-center md:text-left">
           <span>© 2026 Musyawarah Wilayah IDI Kalimantan Timur</span>
@@ -221,7 +206,7 @@ export default function App() {
         </div>
         <div className="flex flex-wrap justify-center gap-6 md:gap-12">
           <button 
-            onClick={() => setView('admin')}
+            onClick={() => navigate('/dashboard')}
             className="hover:text-emerald-500 transition-colors uppercase"
           >
             Dashboard Admin
@@ -232,7 +217,6 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Modal Container */}
       <AnimatePresence>
         {showForm && (
           <motion.div 
@@ -282,5 +266,22 @@ export default function App() {
       </AnimatePresence>
     </div>
   );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <Toaster position="top-center" richColors />
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/dashboard" element={<AdminDashboardWrapper />} />
+      </Routes>
+    </Router>
+  );
+}
+
+function AdminDashboardWrapper() {
+  const navigate = useNavigate();
+  return <AdminDashboard onBack={() => navigate('/')} />;
 }
 
