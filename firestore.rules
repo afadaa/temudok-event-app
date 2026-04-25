@@ -35,6 +35,7 @@ service cloud.firestore {
       allow update: if isValidRegistration(incoming()) && (
         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'transactionId', 'paymentType', 'photoUrl'])
       );
+      allow delete: if existing().status != 'settlement' && existing().status != 'capture';
     }
 
     // Branches

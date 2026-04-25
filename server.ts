@@ -156,66 +156,76 @@ async function startServer() {
   // API: Create Transaction
   app.post('/api/pay', async (req, res) => {
     try {
-      const validatedData = RegistrationSchema.parse(req.body);
+      const parseResult = RegistrationSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        console.error('Validation Error:', parseResult.error.format());
+        return res.status(400).json({ 
+          message: 'Data pendaftaran tidak valid', 
+          details: parseResult.error.format() 
+        });
+      }
+      const validatedData = parseResult.data;
 
       // Check if email already registered for THIS event
       let existingRef;
       try {
+        console.log(`Checking registration for email: ${validatedData.email}, eventId: ${validatedData.eventId}`);
         const q = query(
           collection(db, 'registrations'), 
           where('email', '==', validatedData.email), 
           where('eventId', '==', validatedData.eventId)
         );
         existingRef = await getDocs(q);
+        console.log(`Found ${existingRef.size} existing registrations for cleanup`);
       } catch (dbError: any) {
         console.error('Database Error during registration check:', dbError);
-        if (dbError.message?.includes('PERMISSION_DENIED')) {
-          return res.status(500).json({ 
-            message: 'Terjadi kendala pada koneksi database (Permission Denied). Silakan lapor ke panitia.' 
-          });
-        }
-        throw dbError;
+        return res.status(500).json({ 
+          message: 'Gagal terhubung ke database. Silakan coba beberapa saat lagi.' 
+        });
       }
 
       if (!existingRef.empty) {
-        const existingDoc = existingRef.docs[0];
-        const existingData = existingDoc.data();
-
-        // If already paid, block new registration
-        if (['settlement', 'capture'].includes(existingData.status)) {
+        // Find if any are already paid
+        const alreadyPaid = existingRef.docs.find(doc => ['settlement', 'capture'].includes(doc.data().status));
+        if (alreadyPaid) {
           return res.status(400).json({ 
             message: 'Email ini sudah terdaftar dan pembayaran telah dikonfirmasi. Silakan cek email Anda untuk e-tiket.' 
           });
         }
 
-        // If not paid (pending/expire/cancel), delete the old one to avoid duplicates in dashboard
-        // and allow fresh registration with updated data
-        console.log(`Cleaning up previous incomplete registration (${existingData.status}) for ${validatedData.email}`);
-        await deleteDoc(existingDoc.ref);
+        // Cleanup all non-paid records (pending/expire/cancel/deny)
+        for (const existingDoc of existingRef.docs) {
+          try {
+            console.log(`Cleaning up previous incomplete registration (${existingDoc.data().status}) for ${validatedData.email} (ID: ${existingDoc.id})`);
+            await deleteDoc(existingDoc.ref);
+          } catch (delError) {
+            console.error('Error deleting previous record:', delError);
+          }
+        }
       }
 
-      const orderId = `${req.body.eventId || 'MUSWIL'}-${Date.now()}`;
+      const orderId = `${validatedData.eventId}-${Date.now()}`;
       
       let price = 0;
       let categoryName = validatedData.category;
-      let eventTitle = 'MUSWIL IDI KALTIM 2026';
+      let eventTitle = 'Event IDI';
 
-      try {
-        const eventSnap = await getDoc(doc(db, 'events', validatedData.eventId));
-        if (eventSnap.exists()) {
-          const event = eventSnap.data();
-          eventTitle = event.title;
-          const cat = event.categories?.find((c: any) => c.id === validatedData.category);
-          if (cat) {
-            price = cat.price;
-            categoryName = cat.name;
-          }
-        }
-      } catch(e) {
-        console.error('Error fetching event for pricing:', e);
+      const eventRef = doc(db, 'events', validatedData.eventId);
+      const eventSnap = await getDoc(eventRef);
+      if (!eventSnap.exists()) {
+        return res.status(400).json({ message: 'Event tidak ditemukan atau sudah berakhir.' });
       }
+      
+      const event = eventSnap.data();
+      eventTitle = event.title;
+      const cat = event.categories?.find((c: any) => c.id === validatedData.category);
+      if (!cat) {
+        return res.status(400).json({ message: 'Kategori tiket tidak valid untuk event ini.' });
+      }
+      price = cat.price;
+      categoryName = cat.name;
 
-      // price === 0 condition
+      // price === 0 condition (Free Registration)
       if (price === 0) {
         console.log('Free registration for Utusan:', validatedData.email);
         
@@ -301,9 +311,13 @@ async function startServer() {
       const snap = getSnap();
       const transaction = await snap.createTransaction(parameter);
       res.json({ token: transaction.token, orderId });
-    } catch (error) {
-      console.error('Payment Error:', error);
-      res.status(400).json({ error: 'Failed to create transaction' });
+    } catch (error: any) {
+      console.error('Payment Error Trace:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(400).json({ 
+        message: `Gagal memproses pendaftaran: ${errorMessage}`,
+        details: error
+      });
     }
   });
 
