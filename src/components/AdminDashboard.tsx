@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit, FileDown } from 'lucide-react';
+import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit, FileDown, Camera, BookOpen, LayoutGrid, X, CheckSquare, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import Flatpickr from 'react-flatpickr';
+import 'flatpickr/dist/themes/material_green.css';
+import { QRScanner } from './QRScanner';
+import { Guestbook } from './Guestbook';
 
 interface Registrant {
   id: string;
@@ -19,11 +23,23 @@ interface Registrant {
 
 interface Branch { id: string; name: string; }
 interface Category { id: string; name: string; price: number; }
+interface Event { 
+  id: string; 
+  title: string; 
+  description: string; 
+  startDate: string; 
+  endDate: string; 
+  location: string; 
+  address: string; 
+  isActive: boolean; 
+  categories: { id: string; name: string; price: number; }[];
+}
 
 export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [registrants, setRegistrants] = useState<Registrant[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [loadingExport, setLoadingExport] = useState(false);
@@ -31,7 +47,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [password, setPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'registrations' | 'branches' | 'categories'>('registrations');
+  const [activeTab, setActiveTab] = useState<'registrations' | 'branches' | 'categories' | 'scanner' | 'guestbook' | 'events'>('registrations');
   const [searchTerm, setSearchTerm] = useState('');
   
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -46,6 +62,25 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryName, setCategoryName] = useState('');
   const [categoryPrice, setCategoryPrice] = useState<number>(0);
+
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [isOneDay, setIsOneDay] = useState(false);
+  const [eventData, setEventData] = useState({
+    title: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    location: '',
+    address: '',
+    isActive: true,
+    categories: [] as { id: string; name: string; price: number; }[]
+  });
+
+  const [eventSearch, setEventSearch] = useState('');
+  const [eventSort, setEventSort] = useState<'date-desc' | 'date-asc' | 'status-active' | 'status-inactive'>('date-desc');
+  const [branchSearch, setBranchSearch] = useState('');
+  const [catSearch, setCatSearch] = useState('');
 
   const authHeaders = { 'x-admin-username': username, 'x-admin-password': password };
 
@@ -65,19 +100,43 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const fetchBranchesAndCategories = async () => {
     try {
-      const [resB, resC] = await Promise.all([
+      const [resB, resC, resE] = await Promise.all([
         fetch('/api/branches'),
-        fetch('/api/categories')
+        fetch('/api/categories'),
+        fetch('/api/admin/events', { headers: authHeaders })
       ]);
       if (resB.ok) setBranches(await resB.json());
       if (resC.ok) setCategories(await resC.json());
+      if (resE.ok) setEvents(await resE.json());
     } catch(e) {}
   };
 
-  const handleLogin = async () => {
-    await fetchRegistrants();
+  useEffect(() => {
     if (isAuthorized) {
-      await fetchBranchesAndCategories();
+      if (activeTab === 'events' || activeTab === 'branches' || activeTab === 'categories') {
+        fetchBranchesAndCategories();
+      }
+      if (activeTab === 'registrations') {
+        fetchRegistrants();
+      }
+    }
+  }, [activeTab, isAuthorized]);
+
+  const handleLogin = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/registrations', { headers: authHeaders });
+      if (response.ok) {
+        setRegistrants(await response.json());
+        setIsAuthorized(true);
+        await fetchBranchesAndCategories();
+      } else {
+        toast.error('Gagal memuat data. Periksa username dan password.');
+      }
+    } catch (error) { 
+      toast.error('Terjadi kesalahan jaringan.'); 
+    } finally { 
+      setLoading(false); 
     }
   };
 
@@ -169,6 +228,100 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       if (res.ok) { toast.success('Terhapus'); fetchBranchesAndCategories(); }
     } catch(e) { toast.error('Error'); }
     finally { setLoading(false); }
+  };
+
+  // Event Handlers
+  const handleAddEvent = () => {
+    setEditingEvent(null);
+    setIsOneDay(false);
+    setEventData({
+      title: '',
+      description: '',
+      startDate: new Date().toISOString(),
+      endDate: new Date().toISOString(),
+      location: '',
+      address: '',
+      isActive: true,
+      categories: categories.map(c => ({ id: c.id, name: c.name, price: c.price }))
+    });
+    setShowEventModal(true);
+  };
+
+  const handleEditEvent = (event: Event) => {
+    setEditingEvent(event);
+    const startStr = event.startDate || new Date().toISOString();
+    const endStr = event.endDate || new Date().toISOString();
+    setIsOneDay(event.startDate?.split('T')[0] === event.endDate?.split('T')[0]);
+    setEventData({
+      title: event.title,
+      description: event.description || '',
+      startDate: startStr,
+      endDate: endStr,
+      location: event.location || '',
+      address: event.address || '',
+      isActive: event.isActive,
+      categories: event.categories || []
+    });
+    setShowEventModal(true);
+  };
+
+  const saveEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    try {
+      const url = editingEvent ? `/api/admin/events/${editingEvent.id}` : '/api/admin/events';
+      const method = editingEvent ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method, headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventData)
+      });
+      if (res.ok) { 
+        toast.success(editingEvent ? 'Event diperbarui' : 'Event ditambahkan'); 
+        setShowEventModal(false);
+        setEditingEvent(null);
+        await fetchBranchesAndCategories(); 
+      }
+      else {
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.error || 'Gagal menyimpan');
+      }
+    } catch(e) { 
+      console.error('Save event error:', e);
+      toast.error('Gagal menyimpan event'); 
+    }
+    finally { setLoading(false); }
+  };
+
+  const deleteEvent = async (id: string) => {
+    if (!id) {
+      toast.error('ID Event tidak valid');
+      return;
+    }
+    
+    if (!window.confirm("Apakah Anda yakin ingin menghapus event ini? Data pendaftaran mungkin akan terpengaruh.")) return;
+    
+    setLoading(true);
+    try {
+      console.log('Deleting event:', id);
+      const res = await fetch(`/api/admin/events/${id}`, { 
+        method: 'DELETE', 
+        headers: authHeaders 
+      });
+      
+      if (res.ok) { 
+        toast.success('Event berhasil dihapus'); 
+        await fetchBranchesAndCategories(); 
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(`Gagal menghapus: ${data.error || res.statusText}`);
+      }
+    } catch(e) { 
+      console.error('Delete event error:', e);
+      toast.error('Terjadi kesalahan saat menghapus event'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const filteredRegistrants = registrants.filter(r => {
@@ -284,6 +437,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             <BarChart size={16} /> Data Registrations
           </button>
           <button 
+            onClick={() => setActiveTab('events')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+              activeTab === 'events' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <Calendar size={16} /> Event Manager
+          </button>
+          <button 
             onClick={() => setActiveTab('branches')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
               activeTab === 'branches' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
@@ -299,6 +460,39 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
           >
             <Tag size={16} /> Kategori
           </button>
+
+          <div className="pt-4 pb-2 px-4">
+             <div className="h-px bg-slate-100 w-full mb-4"></div>
+             <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 px-1">Check-in System</div>
+          </div>
+
+          <button 
+            onClick={() => setActiveTab('scanner')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+              activeTab === 'scanner' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <Camera size={16} /> Scan Kehadiran
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('guestbook')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+              activeTab === 'guestbook' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <BookOpen size={16} /> Buku Tamu
+          </button>
+
+          <div className="pt-4 border-t border-slate-100 mt-4">
+            <button 
+              onClick={() => window.open('/kiosk', '_blank')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-4 rounded-2xl bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100"
+            >
+              <LayoutGrid size={14} /> Open Kiosk Mode
+            </button>
+            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-[0.2em] text-center mt-3">Separate check-in station</p>
+          </div>
         </nav>
         <div className="p-4 border-t border-slate-100">
           <button onClick={onBack} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">
@@ -358,35 +552,45 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               </div>
 
               <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-x-auto min-h-[400px]">
-                <table className="w-full text-left max-w-full">
-                  <thead>
-                    <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 whitespace-nowrap">
-                      <th className="px-6 py-4">Pendaftar</th>
-                      <th className="px-6 py-4">Kategori</th>
-                      <th className="px-6 py-4">Cabang</th>
-                      <th className="px-6 py-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50 text-sm">
-                    {filteredRegistrants.map(r => {
-                      const branchName = branches.find(b => b.id === r.branchId)?.name || r.branchId || '-';
-                      return (
-                      <tr key={r.id}>
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-slate-800">{r.fullName}</div>
-                          <div className="text-[11px] text-slate-500">{r.email}</div>
-                        </td>
-                        <td className="px-6 py-4"><span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase">{r.category}</span></td>
-                        <td className="px-6 py-4 font-semibold text-slate-600">{branchName}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded text-[10px] uppercase font-black tracking-widest ${r.status === 'settlement' || r.status === 'capture' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
-                            {r.status}
-                          </span>
-                        </td>
+                {filteredRegistrants.length > 0 ? (
+                  <table className="w-full text-left max-w-full">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 whitespace-nowrap">
+                        <th className="px-6 py-4">Pendaftar</th>
+                        <th className="px-6 py-4">Kategori</th>
+                        <th className="px-6 py-4">Cabang</th>
+                        <th className="px-6 py-4">Status</th>
                       </tr>
-                    )})}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 text-sm">
+                      {filteredRegistrants.map(r => {
+                        const branchName = branches.find(b => b.id === r.branchId)?.name || r.branchId || '-';
+                        return (
+                        <tr key={r.id}>
+                          <td className="px-6 py-4">
+                            <div className="font-bold text-slate-800">{r.fullName}</div>
+                            <div className="text-[11px] text-slate-500">{r.id} | {r.email}</div>
+                          </td>
+                          <td className="px-6 py-4"><span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase">{r.category}</span></td>
+                          <td className="px-6 py-4 font-semibold text-slate-600">{branchName}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded text-[10px] uppercase font-black tracking-widest ${r.status === 'settlement' || r.status === 'capture' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
+                              {r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      )})}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
+                      <Search size={32} />
+                    </div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Tidak ada data pendaftar</h3>
+                    <p className="text-xs text-slate-400 font-bold uppercase mt-1">Belum ada peserta yang mendaftar atau sesuaikan filter Anda.</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -399,26 +603,55 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   <Plus size={14} /> Tambah
                 </button>
               </div>
-              <div className="bg-white rounded-[2xl] border border-slate-100 p-2">
-                <table className="w-full text-left table-auto">
-                  <thead>
-                    <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
-                      <th className="p-4 rounded-xl">Nama Cabang</th>
-                      <th className="p-4 rounded-xl w-24">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {branches.map(b => (
-                      <tr key={b.id} className="border-t border-slate-50 hover:bg-slate-50/50">
-                        <td className="p-4 font-bold text-sm text-slate-700">{b.name}</td>
-                        <td className="p-4 flex items-center gap-2">
-                          <button onClick={() => handleEditBranch(b)} className="text-amber-500 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50"><Edit size={16} /></button>
-                          <button onClick={() => deleteBranch(b.id)} className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50"><Trash2 size={16} /></button>
-                        </td>
+              <div className="flex bg-white p-4 rounded-2xl border border-slate-100 shadow-sm items-center justify-between">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 flex items-center flex-1 max-w-md">
+                    <Search size={14} className="text-slate-400 mr-2" />
+                    <input 
+                      type="text" placeholder="Cari cabang..."
+                      className="bg-transparent border-none outline-none w-full text-[11px] font-bold uppercase tracking-wider"
+                      value={branchSearch} onChange={(e) => setBranchSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Total: {branches.length} Cabang
+                </div>
+              </div>
+              <div className="bg-white rounded-[2xl] border border-slate-100 p-2 overflow-hidden shadow-sm">
+                {branches.length > 0 ? (
+                  <table className="w-full text-left table-auto">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                        <th className="p-4 rounded-tl-xl text-[9px]">Nama Cabang</th>
+                        <th className="p-4 rounded-tr-xl w-32 text-right text-[9px]">Aksi</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {branches.filter(b => b.name.toLowerCase().includes(branchSearch.toLowerCase())).map(b => (
+                        <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-bold text-sm text-slate-700">{b.name}</td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button onClick={() => handleEditBranch(b)} className="text-amber-500 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50 transition-all" title="Edit"><Edit size={16} /></button>
+                              <button onClick={() => deleteBranch(b.id)} className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-all" title="Hapus"><Trash2 size={16} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
+                      <MapPin size={28} />
+                    </div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Data cabang masih kosong</h3>
+                    <button onClick={handleAddBranch} className="mt-4 flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-emerald-100">
+                      <Plus size={14} /> Buat Cabang Sekarang
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -431,69 +664,218 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   <Plus size={14} /> Tambah
                 </button>
               </div>
-              <div className="bg-white rounded-[2xl] border border-slate-100 p-2">
-                <table className="w-full text-left table-auto">
-                  <thead>
-                    <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
-                      <th className="p-4 rounded-xl">Nama Kategori</th>
-                      <th className="p-4 rounded-xl">Tarif (Rp)</th>
-                      <th className="p-4 rounded-xl w-24">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categories.map(c => (
-                      <tr key={c.id} className="border-t border-slate-50 hover:bg-slate-50/50">
-                        <td className="p-4 font-bold text-sm text-slate-700">{c.name}</td>
-                        <td className="p-4 font-mono text-sm text-slate-600">{c.price.toLocaleString()}</td>
-                        <td className="p-4 flex items-center gap-2">
-                          <button onClick={() => handleEditCategory(c)} className="text-amber-500 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50"><Edit size={16} /></button>
-                          <button onClick={() => deleteCategory(c.id)} className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50"><Trash2 size={16} /></button>
-                        </td>
+              <div className="flex bg-white p-4 rounded-2xl border border-slate-100 shadow-sm items-center justify-between">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 flex items-center flex-1 max-w-md">
+                    <Search size={14} className="text-slate-400 mr-2" />
+                    <input 
+                      type="text" placeholder="Cari kategori..."
+                      className="bg-transparent border-none outline-none w-full text-[11px] font-bold uppercase tracking-wider"
+                      value={catSearch} onChange={(e) => setCatSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Total: {categories.length} Kategori
+                </div>
+              </div>
+              <div className="bg-white rounded-[2xl] border border-slate-100 p-2 overflow-hidden shadow-sm">
+                {categories.length > 0 ? (
+                  <table className="w-full text-left table-auto">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                        <th className="p-4 rounded-tl-xl text-[9px]">Nama Kategori</th>
+                        <th className="p-4 text-[9px]">Tarif (Rp)</th>
+                        <th className="p-4 rounded-tr-xl w-32 text-right text-[9px]">Aksi</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {categories.filter(c => c.name.toLowerCase().includes(catSearch.toLowerCase())).map(c => (
+                        <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-bold text-sm text-slate-700">{c.name}</td>
+                          <td className="p-4">
+                            <span className="font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg text-xs">
+                              {c.price === 0 ? 'Gratis' : `Rp ${c.price.toLocaleString('id-ID')}`}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button onClick={() => handleEditCategory(c)} className="text-amber-500 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50 transition-all" title="Edit"><Edit size={16} /></button>
+                              <button onClick={() => deleteCategory(c.id)} className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-all" title="Hapus"><Trash2 size={16} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
+                      <Tag size={28} />
+                    </div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Data kategori masih kosong</h3>
+                    <button onClick={handleAddCategory} className="mt-4 flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-emerald-100">
+                      <Plus size={14} /> Buat Kategori Sekarang
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
+
+          {activeTab === 'events' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Event Portal</h2>
+                <button onClick={handleAddEvent} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-emerald-700">
+                  <Plus size={14} /> Tambah Event
+                </button>
+              </div>
+              <div className="flex bg-white p-4 rounded-2xl border border-slate-100 shadow-sm items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-4 flex-1 min-w-[300px]">
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 flex items-center flex-1 max-w-md">
+                    <Search size={14} className="text-slate-400 mr-2" />
+                    <input 
+                      type="text" placeholder="Cari nama event..."
+                      className="bg-transparent border-none outline-none w-full text-[11px] font-bold uppercase tracking-wider"
+                      value={eventSearch} onChange={(e) => setEventSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-2">
+                    Urutkan:
+                  </div>
+                  <select 
+                    value={eventSort}
+                    onChange={(e) => setEventSort(e.target.value as any)}
+                    className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-bold uppercase tracking-widest outline-none focus:border-emerald-500 transition-all cursor-pointer"
+                  >
+                    <option value="date-desc">Terbaru</option>
+                    <option value="date-asc">Terlama</option>
+                    <option value="status-active">Aktif Dahulu</option>
+                    <option value="status-inactive">Nonaktif Dahulu</option>
+                  </select>
+                  <div className="h-8 w-[1px] bg-slate-100 mx-2"></div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    {events.length} Agenda
+                  </div>
+                </div>
+              </div>
+              {events.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {events
+                    .filter(e => e.title.toLowerCase().includes(eventSearch.toLowerCase()))
+                    .sort((a, b) => {
+                      if (eventSort === 'date-desc') return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+                      if (eventSort === 'date-asc') return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+                      if (eventSort === 'status-active') {
+                        if (a.isActive === b.isActive) return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+                        return a.isActive ? -1 : 1;
+                      }
+                      if (eventSort === 'status-inactive') {
+                        if (a.isActive === b.isActive) return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+                        return a.isActive ? 1 : -1;
+                      }
+                      return 0;
+                    })
+                    .map(event => (
+                    <div key={event.id} className="bg-white border border-slate-100 rounded-[2rem] p-6 shadow-sm hover:shadow-md transition-all flex flex-col group">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${event.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                          {event.isActive ? 'Aktif' : 'Nonaktif'}
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button onClick={() => handleEditEvent(event)} className="p-2 text-slate-400 hover:text-emerald-600 bg-slate-50 rounded-lg"><Edit size={16} /></button>
+                          <button onClick={() => deleteEvent(event.id)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={16} /></button>
+                        </div>
+                      </div>
+                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-2 line-clamp-2 leading-relaxed">{event.title}</h3>
+                      <div className="space-y-2 mb-4 flex-1">
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase">
+                          <Calendar size={12} className="text-emerald-500" /> 
+                          {new Date(event.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase">
+                          <MapPin size={12} className="text-emerald-500" /> {event.location}
+                        </div>
+                      </div>
+                      <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{event.categories?.length || 0} Tiket</span>
+                        <div className="flex items-center gap-1.5">
+                           <button onClick={() => handleEditEvent(event)} className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Kelola Agenda</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-32 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
+                  <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mb-6">
+                    <Calendar size={40} />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Portal Event Masih Kosong</h3>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-2 max-w-xs leading-relaxed">Mulai buat agenda Musyawarah atau Seminar Anda dan terbitkan di halaman depan.</p>
+                  <button onClick={handleAddEvent} className="mt-8 flex items-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl shadow-slate-200">
+                    <Plus size={16} /> Buat Agenda Sekarang
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'scanner' && <QRScanner />}
+          {activeTab === 'guestbook' && <Guestbook />}
 
         </div>
       </main>
 
       {/* Branch Modal */}
       {showBranchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative">
-            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-6">
-              {editingBranch ? 'Edit Cabang' : 'Tambah Cabang'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-indigo-500"></div>
+            <div className="absolute top-8 right-8">
+               <button onClick={() => setShowBranchModal(false)} className="p-2 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
+                  <X size={20} />
+               </button>
+            </div>
+            
+            <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mb-6">
+              <MapPin size={32} className="text-slate-900" />
+            </div>
+
+            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-2">
+              {editingBranch ? 'Perbarui Cabang' : 'Cabang Utama Baru'}
             </h3>
-            <form onSubmit={saveBranch} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Nama Cabang IDI</label>
-                <input 
-                  type="text" 
-                  value={branchName} 
-                  onChange={e => setBranchName(e.target.value)}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold text-slate-800"
-                  placeholder="Contoh: IDI Cabang Samarinda"
-                  autoFocus
-                />
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-8">Informasi Identitas Cabang organisasi</p>
+
+            <form onSubmit={saveBranch} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">Nama Resmi Cabang IDI</label>
+                <div className="relative">
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400">
+                    <Search size={14} />
+                  </div>
+                  <input 
+                    type="text" 
+                    value={branchName} 
+                    onChange={e => setBranchName(e.target.value)}
+                    className="w-full pl-14 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-slate-900 focus:bg-white outline-none font-bold text-slate-800 transition-all placeholder:text-slate-300"
+                    placeholder="Contoh: IDI Cabang Samarinda"
+                    autoFocus
+                  />
+                </div>
               </div>
-              <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setShowBranchModal(false)}
-                  className="flex-1 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
-                >
-                  Batal
-                </button>
+              
+              <div className="flex gap-4 pt-4">
                 <button 
                   type="submit" 
                   disabled={loading || !branchName.trim()}
-                  className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 bg-slate-900 text-white px-8 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl shadow-slate-200"
                 >
-                  {loading ? <RefreshCw size={16} className="animate-spin" /> : null}
-                  {loading ? 'Menyimpan...' : 'Simpan'}
+                  {loading && <RefreshCw size={14} className="animate-spin" />}
+                  {editingBranch ? 'Simpan Perubahan' : 'Terbitkan Cabang'}
                 </button>
               </div>
             </form>
@@ -503,48 +885,244 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
       {/* Category Modal */}
       {showCategoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl relative">
-            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-6">
-              {editingCategory ? 'Edit Kategori' : 'Tambah Kategori'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500"></div>
+            <div className="absolute top-8 right-8">
+               <button onClick={() => setShowCategoryModal(false)} className="p-2 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
+                  <X size={20} />
+               </button>
+            </div>
+
+            <div className="w-16 h-16 bg-emerald-50 rounded-3xl flex items-center justify-center mb-6">
+              <Tag size={32} className="text-emerald-600" />
+            </div>
+
+            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-1">
+              {editingCategory ? 'Kelola Kategori' : 'Kategori Tiket Baru'}
             </h3>
-            <form onSubmit={saveCategory} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Nama Kategori</label>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-8">Definisikan tipe peserta & tarif dasar</p>
+
+            <form onSubmit={saveCategory} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">Label Kategori</label>
                 <input 
                   type="text" 
                   value={categoryName} 
                   onChange={e => setCategoryName(e.target.value)}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold text-slate-800"
-                  placeholder="Contoh: Utusan"
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 focus:bg-white outline-none font-bold text-slate-800 transition-all placeholder:text-slate-300"
+                  placeholder="Nama pendaftar (e.g. Peserta Umum)"
                   autoFocus
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Tarif (Rp)</label>
-                <input 
-                  type="number" 
-                  value={categoryPrice} 
-                  onChange={e => setCategoryPrice(Number(e.target.value))}
-                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold text-slate-800"
-                  placeholder="0"
-                />
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">Tarif Standar (Rp)</label>
+                <div className="relative group">
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
+                    <span className="text-[10px] font-black text-slate-400 group-focus-within:text-emerald-600 transition-colors">Rp</span>
+                  </div>
+                  <input 
+                    type="number" 
+                    value={categoryPrice} 
+                    onChange={e => setCategoryPrice(Number(e.target.value))}
+                    className="w-full pl-14 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 focus:bg-white outline-none font-bold text-slate-800 transition-all placeholder:text-slate-300"
+                    placeholder="0"
+                  />
+                  {categoryPrice === 0 && (
+                    <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-md">Free</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setShowCategoryModal(false)}
-                  className="flex-1 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all"
-                >
-                  Batal
-                </button>
+
+              <div className="flex pt-4">
                 <button 
                   type="submit" 
                   disabled={loading || !categoryName.trim()}
-                  className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full bg-slate-900 text-white px-8 py-5 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center justify-center gap-3 shadow-xl shadow-slate-200"
                 >
-                  {loading ? <RefreshCw size={16} className="animate-spin" /> : null}
-                  {loading ? 'Menyimpan...' : 'Simpan'}
+                  {loading && <RefreshCw size={14} className="animate-spin" />}
+                  {editingCategory ? 'Perbarui Kategori' : 'Buat Kategori'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Event Modal */}
+      {showEventModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-10 shadow-2xl relative overflow-y-auto max-h-[90vh]">
+            <div className="absolute top-8 right-8">
+               <button onClick={() => setShowEventModal(false)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
+                  <X size={24} />
+               </button>
+            </div>
+            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-8">
+              {editingEvent ? 'Edit Event' : 'Tambah Event Baru'}
+            </h3>
+            <form onSubmit={saveEvent} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Judul Event</label>
+                  <input type="text" value={eventData.title} onChange={e => setEventData({...eventData, title: e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold" placeholder="Judul Muswil / Event" required />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Deskripsi Singkat</label>
+                  <textarea value={eventData.description} onChange={e => setEventData({...eventData, description: e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold h-32" placeholder="Jelaskan mengenai agenda ini..." />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Tanggal Mulai</label>
+                  <Flatpickr
+                    value={eventData.startDate}
+                    onChange={([date]) => {
+                      const newStart = date.toISOString();
+                      setEventData(prev => ({
+                        ...prev,
+                        startDate: newStart,
+                        endDate: isOneDay ? newStart : prev.endDate
+                      }));
+                    }}
+                    options={{ dateFormat: 'd M Y', enableTime: false }}
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Tanggal Selesai</label>
+                  <div className="relative">
+                    <Flatpickr
+                      value={eventData.endDate}
+                      disabled={isOneDay}
+                      onChange={([date]) => setEventData({...eventData, endDate: date.toISOString()})}
+                      options={{ dateFormat: 'd M Y', enableTime: false }}
+                      className={`w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold ${isOneDay ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                    />
+                  </div>
+                </div>
+                <div className="md:col-span-2 flex items-center justify-end px-2">
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const newOneDay = !isOneDay;
+                      setIsOneDay(newOneDay);
+                      if (newOneDay) {
+                        setEventData(prev => ({ ...prev, endDate: prev.startDate }));
+                      }
+                    }}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 transition-colors"
+                  >
+                    {isOneDay ? <CheckSquare size={14} className="text-emerald-600" /> : <Square size={14} />}
+                    Hanya 1 Hari Event
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Lokasi (Hotel/Gedung)</label>
+                  <input type="text" value={eventData.location} onChange={e => setEventData({...eventData, location: e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold" placeholder="Contoh: Hotel Gran Senyiur" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Alamat/Kota</label>
+                  <input type="text" value={eventData.address} onChange={e => setEventData({...eventData, address: e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 outline-none font-bold" placeholder="Contoh: Balikpapan" />
+                </div>
+                <div className="md:col-span-2 flex items-center gap-3 bg-slate-50 p-4 rounded-2xl">
+                  <input type="checkbox" id="isActive" checked={eventData.isActive} onChange={e => setEventData({...eventData, isActive: e.target.checked})} className="w-5 h-5 accent-emerald-600" />
+                  <label htmlFor="isActive" className="text-xs font-black uppercase text-slate-900 cursor-pointer">Publikasikan Event (Aktifkan di Landing Page)</label>
+                </div>
+
+                <div className="md:col-span-2 space-y-6 pt-6 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-base font-black uppercase tracking-tight text-slate-900">Agenda & Tiket Terpadu</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Aktifkan tipe peserta dan sesuaikan tarif delegasi</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    {categories.map(masterCat => {
+                      const eventCat = eventData.categories.find(c => c.id === masterCat.id);
+                      const isSelected = !!eventCat;
+                      
+                      return (
+                        <div key={masterCat.id} className={`relative flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-[2rem] border transition-all duration-300 ${isSelected ? 'border-emerald-200 bg-emerald-50/20 shadow-sm ring-1 ring-emerald-100' : 'border-slate-100 bg-slate-50/30 grayscale opacity-60 hover:grayscale-0 hover:opacity-100'}`}>
+                          <div className="flex items-center gap-4 flex-1">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setEventData(prev => ({
+                                    ...prev,
+                                    categories: prev.categories.filter(c => c.id !== masterCat.id)
+                                  }));
+                                } else {
+                                  setEventData(prev => ({
+                                    ...prev,
+                                    categories: [...prev.categories, { id: masterCat.id, name: masterCat.name, price: masterCat.price }]
+                                  }));
+                                }
+                              }}
+                              className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${isSelected ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' : 'bg-white text-slate-300 border border-slate-100'}`}
+                            >
+                              {isSelected ? <CheckCircle2 size={24} /> : <Plus size={24} />}
+                            </button>
+                            
+                            <div className="flex-1">
+                              <div className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-900 leading-none mb-1.5">{masterCat.name}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded">Tarif Master</span>
+                                <span className="text-[10px] text-slate-500 font-bold">Rp {masterCat.price.toLocaleString('id-ID')}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {isSelected && (
+                            <div className="w-full sm:w-64 pt-4 sm:pt-0 border-t sm:border-t-0 sm:border-l border-emerald-100 sm:pl-6">
+                              <div className="space-y-1.5">
+                                <label className="text-[8px] font-black uppercase tracking-widest text-emerald-600 ml-1">Tarif Khusus Event Ini</label>
+                                <div className="relative">
+                                  <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+                                    <span className="text-[10px] font-black text-emerald-300">Rp</span>
+                                  </div>
+                                  <input 
+                                    type="number"
+                                    value={eventCat.price}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      setEventData(prev => ({
+                                        ...prev,
+                                        categories: prev.categories.map(c => c.id === masterCat.id ? { ...c, price: val } : c)
+                                      }));
+                                    }}
+                                    className="w-full pl-12 pr-4 py-3 bg-white border-2 border-emerald-100 rounded-2xl outline-none text-sm font-black text-emerald-700 focus:border-emerald-500 transition-all shadow-inner"
+                                    placeholder="0"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {categories.length === 0 && (
+                      <div className="p-12 text-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
+                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-300 mx-auto mb-4 border border-slate-100">
+                          <Tag size={24} />
+                        </div>
+                        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 mb-1">Master Kategori Kosong</h4>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight leading-relaxed">
+                          Anda harus menambahkan minimal satu kategori di menu <span className="text-indigo-600">Kategori Master</span> sebelum bisa mengonfigurasi tiket event.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-6 flex gap-4">
+                <button type="button" onClick={() => setShowEventModal(false)} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-400 hover:bg-slate-50">Batal</button>
+                <button type="submit" disabled={loading} className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-2">
+                  {loading ? <RefreshCw size={16} className="animate-spin" /> : 'Simpan Event'}
                 </button>
               </div>
             </form>

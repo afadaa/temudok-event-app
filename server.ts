@@ -66,6 +66,29 @@ const db = getFirestore(firebaseApp, config.firestoreDatabaseId);
       });
       console.log('Admin user seeded in Firestore.');
     }
+
+    // Seed Initial Event if none exists
+    const eventsSnapshot = await getDocs(collection(db, 'events'));
+    if (eventsSnapshot.empty) {
+      const defaultEventId = 'muswil-initial-event';
+      const defaultEvent = {
+        title: 'Musyawarah Wilayah IDI Kalimantan Timur 2026',
+        description: 'Musyawarah Wilayah (MUSWIL) IDI Kalimantan Timur merupakan agenda rutin empat tahunan yang bertujuan untuk mengevaluasi program kerja kepengurusan periode sebelumnya serta menyusun rencana strategis dan memilih nakhoda baru untuk masa khidmat berikutnya.',
+        startDate: '2026-05-20T08:00:00.000Z',
+        endDate: '2026-05-22T17:00:00.000Z',
+        location: 'Hotel Gran Senyiur',
+        address: 'Balikpapan, Kalimantan Timur',
+        isActive: true,
+        categories: [
+          { id: 'delegate', name: 'Utusan Cabang (Delegasi Resmi)', price: 1000000 },
+          { id: 'participant', name: 'Anggota Biasa (Peserta)', price: 1250000 },
+          { id: 'guest', name: 'Tamu Undangan / Eksibitor', price: 500000 }
+        ],
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'events', defaultEventId), defaultEvent);
+      console.log('Initial event seeded in Firestore.');
+    }
   } catch (err: any) {
     console.error('Firestore init error:', err.message);
   }
@@ -107,6 +130,7 @@ const RegistrationSchema = z.object({
   npa: z.string().optional(), // Nomor Pokok Anggota IDI
   category: z.string(),
   branchId: z.string().optional(),
+  eventId: z.string()
 });
 
   const requireAdmin = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -126,7 +150,8 @@ const RegistrationSchema = z.object({
 
 async function startServer() {
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // API: Create Transaction
   app.post('/api/pay', async (req, res) => {
@@ -155,22 +180,25 @@ async function startServer() {
         });
       }
 
-      const orderId = `MUSWIL-IDI-${Date.now()}`;
+      const orderId = `${req.body.eventId || 'MUSWIL'}-${Date.now()}`;
       
       let price = 0;
       let categoryName = validatedData.category;
+      let eventTitle = 'MUSWIL IDI KALTIM 2026';
+
       try {
-        const catSnap = await getDoc(doc(db, 'categories', validatedData.category));
-        if (catSnap.exists()) {
-          const catData = catSnap.data();
-          price = catData.price || 0;
-          categoryName = catData.name;
-        } else {
-           if (validatedData.category === 'guest') price = 5000;
-           if (validatedData.category === 'delegate') price = 0;
+        const eventSnap = await getDoc(doc(db, 'events', validatedData.eventId));
+        if (eventSnap.exists()) {
+          const event = eventSnap.data();
+          eventTitle = event.title;
+          const cat = event.categories?.find((c: any) => c.id === validatedData.category);
+          if (cat) {
+            price = cat.price;
+            categoryName = cat.name;
+          }
         }
       } catch(e) {
-         if (validatedData.category === 'guest') price = 5000;
+        console.error('Error fetching event for pricing:', e);
       }
 
       // price === 0 condition
@@ -179,6 +207,8 @@ async function startServer() {
         
         const regData = {
           orderId,
+          eventId: validatedData.eventId,
+          eventTitle,
           fullName: validatedData.fullName,
           email: validatedData.email,
           phone: validatedData.phone,
@@ -202,6 +232,7 @@ async function startServer() {
           },
           custom_field1: validatedData.fullName,
           custom_field2: categoryName,
+          custom_field3: eventTitle
         });
         return res.json({ isFree: true, orderId });
       }
@@ -209,6 +240,8 @@ async function startServer() {
       // Initial save for paid registration (pending)
       const pendingReg = {
         orderId,
+        eventId: validatedData.eventId,
+        eventTitle,
         fullName: validatedData.fullName,
         email: validatedData.email,
         phone: validatedData.phone,
@@ -288,6 +321,72 @@ async function startServer() {
       const snapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
       res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch(e) { res.status(500).json([]); }
+  });
+
+  // Event APIs
+  app.get('/api/events', async (req, res) => {
+    try {
+      const q = query(collection(db, 'events'), where('isActive', '==', true), orderBy('startDate', 'asc'));
+      const snapshot = await getDocs(q);
+      res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (e) {
+      console.error('Fetch events error:', e);
+      res.status(500).json([]);
+    }
+  });
+
+  app.get('/api/admin/events', requireAdmin, async (req, res) => {
+    try {
+      const snapshot = await getDocs(query(collection(db, 'events'), orderBy('createdAt', 'desc')));
+      res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (e) { res.status(500).json({ error: 'Failed' }); }
+  });
+
+  app.post('/api/admin/events', requireAdmin, async (req, res) => {
+    try {
+      console.log('Admin creating event:', req.body.title);
+      // Optional: Check for recently created similar event to prevent duplicates
+      const now = new Date();
+      const fiveSecondsAgo = new Date(now.getTime() - 5000).toISOString();
+      const duplicateCheck = await getDocs(query(
+        collection(db, 'events'), 
+        where('title', '==', req.body.title),
+        where('createdAt', '>=', fiveSecondsAgo)
+      ));
+      
+      if (!duplicateCheck.empty) {
+        console.warn('Duplicate event creation attempt blocked for:', req.body.title);
+        return res.status(409).json({ error: 'Event dengan judul serupa baru saja dibuat.' });
+      }
+
+      const docRef = await addDoc(collection(db, 'events'), { ...req.body, createdAt: now.toISOString() });
+      res.json({ id: docRef.id });
+    } catch (error) { 
+      console.error('Error creating event:', error);
+      res.status(500).json({ error: 'Gagal membuat event' }); 
+    }
+  });
+
+  app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
+    try {
+      console.log('Admin updating event:', req.params.id);
+      await updateDoc(doc(db, 'events', req.params.id), { ...req.body, updatedAt: new Date().toISOString() });
+      res.json({ success: true });
+    } catch (error) { 
+      console.error('Error updating event:', error);
+      res.status(500).json({ error: 'Gagal memperbarui event' }); 
+    }
+  });
+
+  app.delete('/api/admin/events/:id', requireAdmin, async (req, res) => {
+    try {
+      console.log('Admin deleting event:', req.params.id);
+      await deleteDoc(doc(db, 'events', req.params.id));
+      res.json({ success: true });
+    } catch (error) { 
+      console.error('Error deleting event:', error);
+      res.status(500).json({ error: 'Gagal menghapus event' }); 
+    }
   });
 
   // Admin CRUD: Branches
@@ -422,6 +521,54 @@ async function startServer() {
     } catch (error) {
       console.error('Update Photo Error:', error);
       res.status(500).json({ error: 'Gagal mengunggah foto' });
+    }
+  });
+
+  app.post('/api/admin/check-in', requireAdmin, async (req, res) => {
+    try {
+      const { orderId } = req.body;
+      if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+
+      const docRef = doc(db, 'registrations', orderId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+      }
+
+      const data = docSnap.data();
+      if (data.status !== 'settlement' && data.status !== 'capture') {
+        return res.status(400).json({ error: 'Pembayaran belum lunas/berhasil' });
+      }
+
+      await updateDoc(docRef, {
+        checkedIn: true,
+        checkedInAt: new Date().toISOString()
+      });
+
+      res.json({ success: true, participant: data });
+    } catch (error) {
+      console.error('Check-in Error:', error);
+      res.status(500).json({ error: 'Gagal melakukan check-in' });
+    }
+  });
+
+  app.get('/api/admin/guestbook', requireAdmin, async (req, res) => {
+    try {
+      const q = query(
+        collection(db, 'registrations'), 
+        where('checkedIn', '==', true),
+        orderBy('checkedInAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const guests = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      res.json(guests);
+    } catch (error) {
+      console.error('Guestbook Error:', error);
+      res.status(500).json({ error: 'Gagal mengambil data buku tamu' });
     }
   });
 

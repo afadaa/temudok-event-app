@@ -1,25 +1,61 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Stethoscope, Calendar, MapPin, Users, CheckCircle2, ChevronRight, X, Mail, Phone, CreditCard, Search } from 'lucide-react';
+import { Stethoscope, Calendar, MapPin, Users, CheckCircle2, ChevronRight, X, Mail, Phone, CreditCard, Search, ChevronLeft, RefreshCw } from 'lucide-react';
 import { RegistrationForm } from './components/RegistrationForm';
 import { CheckStatus } from './components/CheckStatus';
 import { TicketDownload } from './components/TicketDownload';
 import { AdminDashboard } from './components/AdminDashboard';
+import { KioskCheckin } from './components/KioskCheckin';
 import QRCode from 'qrcode';
 import { Toaster, toast } from 'sonner';
+
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  address: string;
+  categories: { id: string; name: string; price: number; }[];
+}
 
 function MainApp() {
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [view, setView] = useState<'registration' | 'status'>('registration');
-  const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string, photoUrl?: string } | null>(null);
+  const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string, photoUrl?: string, eventTitle?: string } | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [pendingOrderId, setPendingOrderId] = useState<string | undefined>(undefined);
 
   const [showStatusResult, setShowStatusResult] = useState(false);
   const [statusResultData, setStatusResultData] = useState<any>(null);
+
+  const [events, setEvents] = useState<Event[]>([]);
+  const [currentEventIdx, setCurrentEventIdx] = useState(0);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/events')
+      .then(res => res.json())
+      .then(data => {
+        setEvents(data);
+        setLoadingEvents(false);
+      })
+      .catch(() => setLoadingEvents(false));
+  }, []);
+
+  const activeEvent = events[currentEventIdx];
+
+  const nextEvent = () => {
+    setCurrentEventIdx((prev) => (prev + 1) % events.length);
+  };
+
+  const prevEvent = () => {
+    setCurrentEventIdx((prev) => (prev - 1 + events.length) % events.length);
+  };
 
   const openForm = (v: 'registration' | 'status') => {
     setView(v);
@@ -28,12 +64,15 @@ function MainApp() {
   };
 
   const handleSuccess = async (data: { fullName: string, email: string, category: string, orderId?: string, photoUrl?: string }) => {
-    setRegData(data);
+    const eventTitle = activeEvent?.title || 'MUSWIL IDI KALTIM 2026';
+    const regDataWithTitle = { ...data, eventTitle };
+    setRegData(regDataWithTitle);
+    
     const qrText = JSON.stringify({
       id: data.orderId,
       name: data.fullName,
       cat: data.category,
-      event: 'MUSWIL IDI KALTIM 2026'
+      event: eventTitle
     });
     
     try {
@@ -51,19 +90,21 @@ function MainApp() {
     setShowForm(false);
     
     if (data.transaction_status === 'settlement' || data.transaction_status === 'capture') {
+      const eventTitle = data.eventTitle || data.custom_field3 || 'MUSWIL IDI KALTIM 2026';
       setRegData({
         fullName: data.custom_field1 || 'Peserta',
         email: '',
         category: data.custom_field2 || 'Peserta',
         orderId: data.order_id,
-        photoUrl: data.photoUrl
+        photoUrl: data.photoUrl,
+        eventTitle: eventTitle
       });
 
       const qrText = JSON.stringify({
         id: data.order_id,
         name: data.custom_field1 || 'Peserta',
         cat: data.custom_field2 || 'Peserta',
-        event: 'MUSWIL IDI KALTIM 2026'
+        event: eventTitle
       });
 
       try {
@@ -132,94 +173,139 @@ function MainApp() {
       </nav>
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-6 md:p-12 flex flex-col gap-12 md:gap-20">
-        <section className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center pt-8">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="md:col-span-7"
-          >
-            <div className="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded uppercase tracking-tighter mb-6">
-              Muktamar Tahunan 2026
-            </div>
-            <h1 className="text-4xl md:text-6xl font-black text-slate-900 leading-tight mb-6 tracking-tight">
-              Musyawarah Wilayah <br/>
-              <span className="text-emerald-600">IDI Kalimantan Timur</span>
-            </h1>
-            <p className="text-slate-500 text-lg leading-relaxed max-w-xl mb-10">
-              Konsolidasi organisasi dan peningkatan profesionalisme dokter di era transformasi kesehatan digital. Bersama membangun masa depan cerah.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-8 items-start sm:items-center border-l-4 border-emerald-600 pl-6">
-              <div>
-                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Tanggal</p>
-                <div className="flex items-center gap-2 font-bold text-slate-800">
-                  <Calendar size={16} className="text-emerald-600" />
-                  <span>15—17 Mei 2026</span>
-                </div>
+        {loadingEvents ? (
+          <div className="flex-1 flex items-center justify-center">
+            <RefreshCw className="animate-spin text-emerald-600" size={48} />
+          </div>
+        ) : events.length > 0 ? (
+          <div className="relative">
+            {events.length > 1 && (
+              <div className="absolute top-1/2 -left-4 -right-4 -translate-y-1/2 flex justify-between z-10 pointer-events-none">
+                <button 
+                  onClick={prevEvent} 
+                  className="w-12 h-12 bg-white rounded-full shadow-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-all pointer-events-auto active:scale-90"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button 
+                  onClick={nextEvent} 
+                  className="w-12 h-12 bg-white rounded-full shadow-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-all pointer-events-auto active:scale-90"
+                >
+                  <ChevronRight size={24} />
+                </button>
               </div>
-              <div className="hidden sm:block w-px h-10 bg-slate-200"></div>
-              <div>
-                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Lokasi</p>
-                <div className="flex items-center gap-2 font-bold text-slate-800">
-                  <MapPin size={16} className="text-emerald-600" />
-                  <span>Swiss-Belhotel, Samarinda</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-          
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="md:col-span-5 bg-white border border-slate-200 rounded-3xl shadow-2xl p-8 relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16"></div>
-            <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Registrasi Peserta</h3>
-            <p className="text-sm text-slate-400 leading-relaxed mb-8">
-              Dapatkan akses penuh ke seluruh sesi plenary dan workshop dengan sertifikat SKP IDI resmi.
-            </p>
+            )}
             
-            <div className="space-y-3 mb-8">
-              {[
-                { label: 'Tamu / Undangan', price: 'Rp 5.000' },
-                { label: 'Utusan', price: 'Gratis' },
-              ].map((item, i) => (
-                <div key={i} className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex justify-between items-center transition-all hover:border-emerald-200 hover:bg-emerald-50/30">
-                  <span className="text-slate-600 text-xs font-bold uppercase tracking-tight">{item.label}</span>
-                  <span className="text-xl font-black text-emerald-600">{item.price}</span>
+            <AnimatePresence mode="wait">
+              <motion.div 
+                key={activeEvent.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center pt-8"
+              >
+                <div className="md:col-span-7">
+                  <div className="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded uppercase tracking-tighter mb-6">
+                    Muktamar & Seminar 2026
+                  </div>
+                  <h1 className="text-4xl md:text-6xl font-black text-slate-900 leading-tight mb-6 tracking-tight">
+                    {activeEvent.title.split('IDI').map((part, i, arr) => (
+                      <span key={i}>
+                        {part}
+                        {i < arr.length - 1 && <span className="text-emerald-600">IDI</span>}
+                      </span>
+                    ))}
+                  </h1>
+                  <p className="text-slate-500 text-lg leading-relaxed max-w-xl mb-10">
+                    {activeEvent.description}
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row gap-8 items-start sm:items-center border-l-4 border-emerald-600 pl-6">
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Tanggal</p>
+                      <div className="flex items-center gap-2 font-bold text-slate-800">
+                        <Calendar size={16} className="text-emerald-600" />
+                        <span>{new Date(activeEvent.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      </div>
+                    </div>
+                    <div className="hidden sm:block w-px h-10 bg-slate-200"></div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Lokasi</p>
+                      <div className="flex items-center gap-2 font-bold text-slate-800">
+                        <MapPin size={16} className="text-emerald-600" />
+                        <span>{activeEvent.location}, {activeEvent.address}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
+                
+                <div className="md:col-span-5 bg-white border border-slate-200 rounded-3xl shadow-2xl p-8 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16"></div>
+                  <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Registrasi Peserta</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed mb-8">
+                    Silakan pilih kategori pendaftaran untuk agenda ini.
+                  </p>
+                  
+                  <div className="space-y-3 mb-8">
+                    {activeEvent.categories?.map((item, i) => (
+                      <div key={i} className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex justify-between items-center transition-all hover:border-emerald-200 hover:bg-emerald-50/30">
+                        <span className="text-slate-600 text-xs font-bold uppercase tracking-tight">{item.name}</span>
+                        <span className="text-xl font-black text-emerald-600">
+                          {item.price === 0 ? 'Gratis' : `Rp ${item.price.toLocaleString('id-ID')}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
 
-            <div className="space-y-4">
-              <button 
-                onClick={() => openForm('registration')}
-                className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 active:scale-[0.98]"
-              >
-                <span>Daftar Sekarang</span>
-                <ChevronRight size={18} />
-              </button>
-              
-              <button 
-                onClick={() => openForm('status')}
-                className="w-full bg-slate-50 text-slate-600 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
-              >
-                <Search size={16} />
-                Cek Status Pembayaran
-              </button>
-            </div>
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => openForm('registration')}
+                      className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 active:scale-[0.98]"
+                    >
+                      <span>Daftar Sekarang</span>
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
             
-            <div className="mt-8 flex flex-col items-center gap-3 grayscale opacity-30">
-              <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest">Secured by Midtrans</span>
-              <div className="flex gap-4">
-                <div className="w-10 h-6 bg-slate-300 rounded-md"></div>
-                <div className="w-10 h-6 bg-slate-300 rounded-md"></div>
-                <div className="w-10 h-6 bg-slate-300 rounded-md"></div>
+            {events.length > 1 && (
+              <div className="flex justify-center gap-2 mt-8">
+                {events.map((_, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setCurrentEventIdx(i)}
+                    className={`w-2 h-2 rounded-full transition-all ${i === currentEventIdx ? 'w-8 bg-emerald-600' : 'bg-slate-300'}`}
+                  />
+                ))}
               </div>
-            </div>
-          </motion.div>
-        </section>
+            )}
+          </div>
+        ) : (
+          <section className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center pt-8">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="md:col-span-12 text-center py-20"
+            >
+              <div className="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded uppercase tracking-tighter mb-6">
+                Ikatan Dokter Indonesia
+              </div>
+              <h1 className="text-4xl md:text-6xl font-black text-slate-900 leading-tight mb-6 tracking-tight">
+                Wilayah <span className="text-emerald-600">Kalimantan Timur</span>
+              </h1>
+              <p className="text-slate-500 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
+                Selamat datang di portal informasi dan layanan publik IDI Wilayah Kalimantan Timur. Belum ada event atau agenda yang dapat ditampilkan saat ini. Silakan cek kembali di lain waktu.
+              </p>
+              <div className="flex justify-center gap-4">
+                <button className="flex items-center gap-3 px-8 py-4 bg-white border border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest hover:border-emerald-500 transition-all">
+                  <Mail size={16} /> Hubungi Kami
+                </button>
+              </div>
+            </motion.div>
+          </section>
+        )}
 
         <section className="grid md:grid-cols-3 gap-8">
           {[
@@ -286,11 +372,13 @@ function MainApp() {
                       <>
                         <div className="mb-10 text-center">
                           <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-2">Form Pendaftaran</h2>
+                          <div className="text-xs font-bold text-emerald-600 uppercase mb-4 tracking-widest">{activeEvent.title}</div>
                           <div className="w-12 h-1 bg-emerald-600 mx-auto rounded-full"></div>
                         </div>
                         <RegistrationForm 
                           onSuccess={handleSuccess}
                           onPending={handlePending}
+                          selectedEventId={activeEvent.id}
                         />
                       </>
                     ) : (
@@ -378,6 +466,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<MainApp />} />
         <Route path="/dashboard" element={<AdminDashboardWrapper />} />
+        <Route path="/kiosk" element={<KioskCheckinWrapper />} />
       </Routes>
     </Router>
   );
@@ -386,5 +475,10 @@ export default function App() {
 function AdminDashboardWrapper() {
   const navigate = useNavigate();
   return <AdminDashboard onBack={() => navigate('/')} />;
+}
+
+function KioskCheckinWrapper() {
+  const navigate = useNavigate();
+  return <KioskCheckin onBack={() => navigate('/')} />;
 }
 

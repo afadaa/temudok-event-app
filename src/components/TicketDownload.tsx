@@ -11,6 +11,7 @@ interface TicketDownloadProps {
     category: string;
     orderId?: string;
     photoUrl?: string;
+    eventTitle?: string;
   };
   qrCodeUrl: string;
 }
@@ -26,6 +27,14 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
     const file = e.target.files?.[0];
     if (!file || !data.orderId) return;
 
+    // Validation: Type (JPG, JPEG, PNG)
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Format file harus JPG, JPEG, atau PNG');
+      return;
+    }
+
+    // Validation: Size (Max 1MB)
     if (file.size > 1024 * 1024) {
       toast.error('Ukuran foto maksimal 1MB');
       return;
@@ -149,53 +158,55 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
               <Ticket size={80} style={{ color: '#ffffff', transform: 'rotate(-15deg)' }} />
             </div>
             <p style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '0.25em', color: 'rgba(255, 255, 255, 0.9)', textTransform: 'uppercase', margin: 0 }}>Kartu Peserta</p>
-            <h3 style={{ fontSize: '0.875rem', fontWeight: 900, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0.25rem 0 0 0', textAlign: 'center' }}>MUSWIL IDI KALTIM 2026</h3>
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 900, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0.25rem 0 0 0', textAlign: 'center', maxWidth: '90%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{data.eventTitle || 'MUSWIL IDI KALTIM 2026'}</h3>
           </div>
 
           {/* Content Body - Stacked Layout */}
-          <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', height: 'calc(100% - 5rem)', textAlign: 'center' }}>
+          <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', height: 'calc(100% - 5rem)', textAlign: 'center' }}>
             
             {/* Participant Info */}
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '0.5rem' }}>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.25rem' }}>
               <div>
-                <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.15em', marginBottom: '0.375rem', margin: 0 }}>Nama Lengkap</p>
-                <p style={{ fontSize: '1rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', lineHeight: '1.2', margin: 0 }}>{data.fullName}</p>
+                <p style={{ fontSize: '8.5px', fontWeight: 900, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.15em', marginBottom: '0.25rem', margin: 0 }}>Nama Lengkap</p>
+                <p style={{ fontSize: '0.925rem', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', lineHeight: '1.2', margin: 0 }}>{data.fullName}</p>
               </div>
 
               <div>
-                <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.15em', marginBottom: '0.375rem', margin: 0 }}>Kategori Peserta</p>
-                <div style={{ display: 'inline-block', backgroundColor: '#ecfdf5', border: '1px solid #10b981', padding: '0.25rem 0.75rem', borderRadius: '9999px' }}>
-                  <p style={{ fontSize: '0.75rem', fontWeight: 900, color: '#059669', textTransform: 'uppercase', margin: 0 }}>{data.category}</p>
+                <p style={{ fontSize: '8.5px', fontWeight: 900, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.15em', marginBottom: '0.25rem', margin: 0 }}>Kategori Peserta</p>
+                <div style={{ display: 'inline-block', backgroundColor: '#ecfdf5', border: '1px solid #10b981', padding: '0.2rem 0.6rem', borderRadius: '9999px' }}>
+                  <p style={{ fontSize: '0.7rem', fontWeight: 900, color: '#059669', textTransform: 'uppercase', margin: 0 }}>{data.category}</p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <div>
-                  <p style={{ fontSize: '8px', fontWeight: 900, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.1em', marginBottom: '0.125rem', margin: 0 }}>ID Registrasi</p>
-                  <p style={{ fontSize: '0.75rem', fontFamily: 'monospace', fontWeight: 700, color: '#475569', margin: 0 }}>{data.orderId || '00000'}</p>
+                  <p style={{ fontSize: '7.5px', fontWeight: 900, textTransform: 'uppercase', color: '#94a3b8', letterSpacing: '0.1em', marginBottom: '0.125rem', margin: 0 }}>ID Registrasi</p>
+                  <p style={{ fontSize: '0.7rem', fontFamily: 'monospace', fontWeight: 700, color: '#475569', margin: 0 }}>{data.orderId || '00000'}</p>
                 </div>
               </div>
             </div>
 
             {/* Photo & QR Code Section */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '0.5rem 0' }}>
               {localPhotoUrl ? (
-                <div style={{ padding: '0.375rem', border: '1px solid #f1f5f9', borderRadius: '0.75rem', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                  <img src={localPhotoUrl} alt="Photo" style={{ width: '6.5rem', height: '6.5rem', objectFit: 'cover', borderRadius: '0.5rem', display: 'block' }} />
+                <div style={{ padding: '0.25rem', border: '1px solid #f1f5f9', borderRadius: '0.5rem', backgroundColor: '#ffffff', boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.05)' }}>
+                  <img src={localPhotoUrl} alt="Photo" style={{ width: '5.25rem', height: '5.25rem', objectFit: 'cover', borderRadius: '0.375rem', display: 'block' }} />
                 </div>
               ) : (
-                <div style={{ width: '7.25rem', height: '7.25rem', border: '2px dashed #e2e8f0', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center', padding: '0.5rem' }}>Foto Belum Diunggah</span>
+                <div style={{ width: '5.75rem', height: '5.75rem', border: '2px dashed #e2e8f0', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
+                  <span style={{ fontSize: '8px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center', padding: '0.25rem' }}>Foto Belum Diunggah</span>
                 </div>
               )}
-              <div style={{ padding: '0.375rem', border: '1px solid #f1f5f9', borderRadius: '0.75rem', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                <img src={qrCodeUrl} alt="QR" style={{ width: '6.5rem', height: '6.5rem', display: 'block' }} />
+              <div style={{ padding: '0.25rem', border: '1px solid #f1f5f9', borderRadius: '0.5rem', backgroundColor: '#ffffff', boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.05)' }}>
+                <img src={qrCodeUrl} alt="QR" style={{ width: '5.25rem', height: '5.25rem', display: 'block' }} />
               </div>
             </div>
+            
+            {/* Footer verified Access */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                  <div style={{ width: '0.25rem', height: '0.25rem', backgroundColor: '#10b981', borderRadius: '9999px' }}></div>
-                 <p style={{ fontSize: '8px', fontWeight: 900, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Verified Access</p>
+                 <p style={{ fontSize: '7.5px', fontWeight: 900, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Verified Access</p>
                </div>
             </div>
           </div>

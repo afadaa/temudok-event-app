@@ -7,6 +7,7 @@ import Select, { components } from 'react-select';
 interface RegistrationFormProps {
   onSuccess: (data: { fullName: string, email: string, category: string, orderId?: string }) => void;
   onPending: (data: { orderId: string }) => void;
+  selectedEventId: string;
 }
 
 const RegistrationSchema = z.object({
@@ -28,7 +29,7 @@ declare global {
   }
 }
 
-export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps) {
+export function RegistrationForm({ onSuccess, onPending, selectedEventId }: RegistrationFormProps) {
   const [loading, setLoading] = useState(false);
   const [loadingDefs, setLoadingDefs] = useState(true);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -46,19 +47,27 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
   });
 
   useEffect(() => {
-    Promise.all([fetch('/api/branches'), fetch('/api/categories')])
-      .then(async ([resB, resC]) => {
+    setLoadingDefs(true);
+    // Fetch branches globally, but categories from event
+    Promise.all([
+      fetch('/api/branches'),
+      fetch(`/api/events`) // We already have events in the parent, but let's re-fetch or use a more specific data source
+    ])
+      .then(async ([resB, resE]) => {
         if (resB.ok) setBranches(await resB.json());
-        if (resC.ok) {
-          const cats = await resC.json();
-          setCategories(cats);
-          if (cats.length > 0) {
-            setFormData(p => ({ ...p, category: cats[0].id }));
+        if (resE.ok) {
+          const events: any[] = await resE.json();
+          const event = events.find(e => e.id === selectedEventId);
+          if (event && event.categories) {
+            setCategories(event.categories);
+            if (event.categories.length > 0) {
+              setFormData(p => ({ ...p, category: event.categories[0].id }));
+            }
           }
         }
       })
       .finally(() => setLoadingDefs(false));
-  }, []);
+  }, [selectedEventId]);
 
   const validate = () => {
     try {
@@ -97,7 +106,7 @@ export function RegistrationForm({ onSuccess, onPending }: RegistrationFormProps
       const response = await fetch('/api/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, eventId: selectedEventId }),
       });
 
       const data = await response.json();

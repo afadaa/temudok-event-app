@@ -40,6 +40,27 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "price"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "Information about a conference or meeting",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "address": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "imageUrl": { "type": "string" },
+        "categories": { 
+          "type": "array",
+          "items": { "type": "object" } 
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "startDate", "endDate", "isActive"]
     }
   },
   "firestore": {
@@ -54,6 +75,10 @@
     "categories/{categoryId}": {
       "schema": "Category",
       "description": "Membership categories"
+    },
+    "events/{eventId}": {
+      "schema": "Event",
+      "description": "Conference and event information"
     }
   }
 }

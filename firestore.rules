@@ -26,13 +26,14 @@ service cloud.firestore {
       function isValidRegistration(data) {
         return data.fullName is string && data.fullName.size() <= 200
             && data.email is string && data.email.size() <= 200
-            && data.status in ['pending', 'settlement', 'capture', 'expire', 'cancel', 'deny', 'failure'];
+            && data.status in ['pending', 'settlement', 'capture', 'expire', 'cancel', 'deny', 'failure']
+            && (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 1048576)); // Max 1MB for base64
       }
 
       allow get, list: if true; // Public can check status if they have ID, list allowed for admin panel (server-side)
       allow create: if isValidRegistration(incoming());
       allow update: if isValidRegistration(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'transactionId', 'paymentType'])
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'transactionId', 'paymentType', 'photoUrl'])
       );
     }
 
@@ -46,6 +47,12 @@ service cloud.firestore {
     match /categories/{categoryId} {
       allow read: if true; // Public needs this for the registration form
       allow write: if true; // Managed by server.ts which has requireAdmin middleware
+    }
+
+    // Events
+    match /events/{eventId} {
+      allow read: if true; // Public needs to see events on landing page
+      allow create, update, delete: if true; // Managed by server.ts with admin check
     }
   }
 }
