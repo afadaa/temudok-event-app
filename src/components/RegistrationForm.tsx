@@ -359,7 +359,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
             </div>
           </div>
 
-          <div className="space-y-3 pt-2">
+          {/* <div className="space-y-3 pt-2">
             <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Kategori Keanggotaan</label>
             {categories.length === 0 ? (
               <div className="text-sm font-medium text-slate-500">Tidak ada kategori tersedia saat ini.</div>
@@ -398,7 +398,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <AlertCircle size={12} /><span>{errors.category}</span>
               </div>
             )}
-          </div>
+          </div> */}
 
           <div className="pt-6">
             <button 

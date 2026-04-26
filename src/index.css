@@ -1,17 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Playfair+Display+SC:wght@700;900&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  --font-serif-sc: "Playfair Display SC", ui-serif, Georgia, serif;
   
-  /* Geometric Balance Palette */
-  --color-primary: var(--color-emerald-600);
-  --color-primary-hover: var(--color-emerald-700);
-  --color-secondary: var(--color-slate-900);
+  /* IDI Kaltim Muswil Palette */
+  --color-idi-dark: #1a130d;
+  --color-idi-gold: #b58e4e;
+  --color-idi-accent: #d4af37;
+  --color-idi-cream: #f5e6cc;
+  --color-idi-bronze: #8c6e3d;
+  --color-idi-red: #cd2026;
+
+  --color-primary: var(--color-idi-gold);
+  --color-primary-hover: var(--color-idi-accent);
+  --color-secondary: var(--color-idi-dark);
 }
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-idi-dark text-idi-dark antialiased;
+  }
+}
+
+@layer utilities {
+  .clip-blob {
+    clip-path: polygon(0% 0%, 100% 0%, 100% 85%, 75% 100%, 25% 100%, 0% 85%);
+  }
+  
+  .bg-ornament {
+    background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M100 0c55.228 0 100 44.772 100 100s-44.772 100-100 100S0 155.228 0 100 44.772 0 100 0zm0 20c-44.183 0-80 35.817-80 80s35.817 80 80 80 80-35.817 80-80-35.817-80-80-80zm0 20c33.137 0 60 26.863 60 60s-26.863 60-60 60-60-26.863-60-60 26.863-60 60-60z' fill='%23b58e4e' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
   }
 }

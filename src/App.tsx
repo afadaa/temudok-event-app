@@ -41,11 +41,7 @@ function MainApp() {
     fetch('/api/events')
       .then(res => res.json())
       .then(data => {
-        const filteredEvents = data.map((event: any) => ({
-          ...event,
-          categories: event.categories?.filter((c: any) => c.price > 0) || []
-        }));
-        setEvents(filteredEvents);
+        setEvents(data);
         setLoadingEvents(false);
       })
       .catch(() => setLoadingEvents(false));
@@ -145,195 +141,168 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col">
-      <nav className="h-20 border-b border-slate-200 bg-white px-6 md:px-12 flex items-center justify-between shrink-0 sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-emerald-600/20">
-            <Stethoscope size={24} />
+    <div className="min-h-screen bg-idi-dark text-idi-cream font-sans flex flex-col bg-ornament">
+      <nav className="h-24 border-b border-idi-gold/20 bg-idi-dark/80 backdrop-blur-md px-6 md:px-12 flex items-center justify-between shrink-0 sticky top-0 z-50">
+        <div className="flex items-center gap-4">
+            <div className="relative group">
+            <img
+              src="/IDI.png"
+              alt="IDI Logo"
+              className="w-14 h-14 bg-white rounded-full shadow-lg object-contain border-2 border-idi-red p-1 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500"
+            />
+            <div className="absolute -inset-1 border border-idi-gold/30 rounded-full animate-pulse group-hover:animate-none group-hover:border-idi-accent transition-all duration-500"></div>
+            </div>
+          <div className="flex flex-col">
+            <span className="font-serif-sc text-sm tracking-widest text-idi-gold leading-tight">Ikatan Dokter Indonesia</span>
+            <span className="font-serif text-lg font-bold text-white tracking-tight leading-tight">Wilayah Kalimantan Timur</span>
           </div>
-          <span className="font-bold text-xl tracking-tight text-slate-900 uppercase">IDI Kaltim</span>
         </div>
-        <div className="hidden md:flex gap-8 text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
-          <a href="#" className="text-emerald-600 border-b-2 border-emerald-600 pb-1">Beranda</a>
-          <button onClick={() => openForm('status')} className="hover:text-slate-800 transition-colors uppercase font-bold text-xs tracking-[0.2em]">Cek Status</button>
-          <a href="#agenda" className="hover:text-slate-800 transition-colors">Agenda</a>
-          <a href="#lokasi" className="hover:text-slate-800 transition-colors">Lokasi</a>
+        <div className="hidden lg:flex gap-10 text-[10px] font-black text-idi-cream/60 uppercase tracking-[0.3em]">
+          <a href="#" className="text-idi-accent border-b border-idi-accent pb-1 uppercase">Beranda</a>
+          <button onClick={() => openForm('status')} className="hover:text-idi-accent transition-colors uppercase">Cek Status</button>
+          <a href="#agenda" className="hover:text-idi-accent transition-colors uppercase">Agenda</a>
+          <a href="#lokasi" className="hover:text-idi-accent transition-colors uppercase">Lokasi</a>
         </div>
         <div className="flex gap-4">
           <button 
-            onClick={() => openForm('status')}
-            className="hidden sm:flex items-center gap-2 border border-slate-200 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-50 transition-all"
-          >
-            <Search size={14} />
-            Status
-          </button>
-          <button 
             onClick={() => openForm('registration')}
-            className="bg-slate-900 text-white px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all active:scale-95"
+            className="bg-idi-gold hover:bg-idi-accent text-idi-dark px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-idi-gold/20"
           >
-            Daftar
+            Pendaftaran
           </button>
         </div>
       </nav>
 
-      <main className="flex-1 max-w-7xl mx-auto w-full p-6 md:p-12 flex flex-col gap-12 md:gap-20">
-        {loadingEvents ? (
-          <div className="flex-1 flex items-center justify-center">
-            <RefreshCw className="animate-spin text-emerald-600" size={48} />
-          </div>
-        ) : events.length > 0 ? (
-          <div className="relative">
-            {events.length > 1 && (
-              <div className="absolute top-1/2 -left-4 -right-4 -translate-y-1/2 flex justify-between z-10 pointer-events-none">
-                <button 
-                  onClick={prevEvent} 
-                  className="w-12 h-12 bg-white rounded-full shadow-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-all pointer-events-auto active:scale-90"
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <button 
-                  onClick={nextEvent} 
-                  className="w-12 h-12 bg-white rounded-full shadow-lg border border-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-all pointer-events-auto active:scale-90"
-                >
-                  <ChevronRight size={24} />
-                </button>
-              </div>
-            )}
+      <main className="flex-1 w-full flex flex-col">
+        {/* Curved Hero Wrapper */}
+        <div className="relative overflow-hidden bg-idi-cream py-20 px-6 md:px-12 rounded-b-[4rem] md:rounded-b-[8rem] shadow-2xl mb-20">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
+            <div className="lg:col-span-12 text-center mb-12">
+               <motion.div
+                 initial={{ opacity: 0, y: -20 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="inline-flex items-center gap-4 mb-6"
+               >
+                  <div className="h-px w-12 bg-idi-bronze"></div>
+                  <span className="font-serif-sc text-idi-bronze tracking-[0.4em] text-xs font-bold uppercase">Musyawarah Wilayah</span>
+                  <div className="h-px w-12 bg-idi-bronze"></div>
+               </motion.div>
+               <motion.h1 
+                 initial={{ opacity: 0, y: 20 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 transition={{ delay: 0.2 }}
+                 className="text-4xl md:text-7xl font-serif font-black text-idi-dark leading-[0.9] tracking-tighter mb-8"
+               >
+                 Ikatan Dokter Indonesia<br/>
+                 <span className="text-idi-bronze italic">Wilayah Kalimantan Timur</span>
+               </motion.h1>
+               
+               <motion.div
+                 initial={{ opacity: 0 }}
+                 animate={{ opacity: 1 }}
+                 transition={{ delay: 0.4 }}
+                 className="flex flex-wrap justify-center gap-6 mb-12"
+               >
+                 <div className="flex items-center gap-3 bg-idi-dark text-idi-cream px-8 py-4 rounded-full shadow-xl">
+                    <Calendar className="text-idi-gold" size={20} />
+                    <span className="font-serif text-lg font-bold">
+                      {activeEvent
+                      ? `${new Date(activeEvent.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - ${new Date(activeEvent.endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                      : ''}
+                    </span>
+                 </div>
+                 <div className="flex items-center gap-3 bg-white border-2 border-idi-gold/30 text-idi-dark px-8 py-4 rounded-full shadow-xl">
+                  <MapPin className="text-idi-bronze" size={20} />
+                  <span className="font-serif text-lg font-bold">
+                    {activeEvent ? activeEvent.location : ''}
+                  </span>
+                 </div>
+               </motion.div>
+            </div>
             
-            <AnimatePresence mode="wait">
-              <motion.div 
-                key={activeEvent.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center pt-8"
-              >
-                <div className="md:col-span-7">
-                  <div className="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded uppercase tracking-tighter mb-6">
-                    Muktamar & Seminar 2026
-                  </div>
-                  <h1 className="text-4xl md:text-6xl font-black text-slate-900 leading-tight mb-6 tracking-tight">
-                    {activeEvent.title.split('IDI').map((part, i, arr) => (
-                      <span key={i}>
-                        {part}
-                        {i < arr.length - 1 && <span className="text-emerald-600">IDI</span>}
-                      </span>
-                    ))}
-                  </h1>
-                  <p className="text-slate-500 text-lg leading-relaxed max-w-xl mb-10">
-                    {activeEvent.description}
-                  </p>
-                  
-                  <div className="flex flex-col sm:flex-row gap-8 items-start sm:items-center border-l-4 border-emerald-600 pl-6">
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Tanggal</p>
-                      <div className="flex items-center gap-2 font-bold text-slate-800">
-                        <Calendar size={16} className="text-emerald-600" />
-                        <span>{new Date(activeEvent.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            {loadingEvents ? (
+              <div className="lg:col-span-12 flex justify-center py-20">
+                <RefreshCw className="animate-spin text-idi-bronze" size={48} />
+              </div>
+            ) : events.length > 0 ? (
+              <div className="lg:col-span-12">
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={activeEvent.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="grid grid-cols-1 lg:grid-cols-2 gap-12"
+                  >
+                    <div className="bg-idi-dark text-idi-cream p-12 rounded-[3.5rem] shadow-2xl relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-idi-gold/10 rounded-full translate-x-8 -translate-y-8"></div>
+                      <div className="relative z-10">
+                        <h4 className="font-serif text-3xl font-bold mb-6 text-idi-gold">{activeEvent.title}</h4>
+                        <p className="text-idi-cream/70 text-lg leading-relaxed mb-10 font-medium">
+                          {activeEvent.description}
+                        </p>
                       </div>
                     </div>
-                    <div className="hidden sm:block w-px h-10 bg-slate-200"></div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Lokasi</p>
-                      <div className="flex items-center gap-2 font-bold text-slate-800">
-                        <MapPin size={16} className="text-emerald-600" />
-                        <span>{activeEvent.location}, {activeEvent.address}</span>
-                      </div>
+
+                    <div className="flex flex-col justify-center">
+                       <h3 className="font-serif text-4xl font-black text-idi-dark mb-6 leading-tight">Berkarir, Berkolaborasi, & Bersinergi</h3>
+                       <p className="text-idi-dark/60 text-lg mb-10 leading-relaxed font-medium">
+                         Silakan mendaftar untuk menjadi bagian dari Musyawarah Wilayah IDI Kaltim 2026.
+                       </p>
+                       <button 
+                         onClick={() => openForm('registration')}
+                         className="bg-idi-dark hover:bg-idi-bronze text-white py-6 px-12 rounded-2xl font-black text-sm uppercase tracking-[0.3em] transition-all shadow-2xl flex items-center justify-center gap-4 group"
+                       >
+                         <span>Daftar Sekarang</span>
+                         <ChevronRight size={20} className="group-hover:translate-x-2 transition-transform" />
+                       </button>
                     </div>
-                  </div>
-                </div>
-                
-                <div className="md:col-span-5 bg-white border border-slate-200 rounded-3xl shadow-2xl p-8 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16"></div>
-                  <h3 className="text-2xl font-black text-slate-800 mb-3 uppercase tracking-tight">Registrasi Peserta</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed mb-8">
-                    Silakan pilih kategori pendaftaran untuk agenda ini.
-                  </p>
-                  
-                  <div className="space-y-3 mb-8">
-                    {activeEvent.categories?.map((item, i) => (
-                      <div key={i} className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex justify-between items-center transition-all hover:border-emerald-200 hover:bg-emerald-50/30">
-                        <span className="text-slate-600 text-xs font-bold uppercase tracking-tight">{item.name}</span>
-                        <span className="text-xl font-black text-emerald-600">
-                          {`Rp ${item.price.toLocaleString('id-ID')}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-4">
-                    <button 
-                      onClick={() => openForm('registration')}
-                      className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 active:scale-[0.98]"
-                    >
-                      <span>Daftar Sekarang</span>
-                      <ChevronRight size={18} />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-            
-            {events.length > 1 && (
-              <div className="flex justify-center gap-2 mt-8">
-                {events.map((_, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => setCurrentEventIdx(i)}
-                    className={`w-2 h-2 rounded-full transition-all ${i === currentEventIdx ? 'w-8 bg-emerald-600' : 'bg-slate-300'}`}
-                  />
-                ))}
+                  </motion.div>
+                </AnimatePresence>
               </div>
-            )}
+            ) : null}
           </div>
-        ) : (
-          <section className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center pt-8">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="md:col-span-12 text-center py-20"
-            >
-              <div className="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded uppercase tracking-tighter mb-6">
-                Ikatan Dokter Indonesia
-              </div>
-              <h1 className="text-4xl md:text-6xl font-black text-slate-900 leading-tight mb-6 tracking-tight">
-                Wilayah <span className="text-emerald-600">Kalimantan Timur</span>
-              </h1>
-              <p className="text-slate-500 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
-                Selamat datang di portal informasi dan layanan publik IDI Wilayah Kalimantan Timur. Belum ada event atau agenda yang dapat ditampilkan saat ini. Silakan cek kembali di lain waktu.
-              </p>
-              <div className="flex justify-center gap-4">
-                <button className="flex items-center gap-3 px-8 py-4 bg-white border border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest hover:border-emerald-500 transition-all">
-                  <Mail size={16} /> Hubungi Kami
-                </button>
-              </div>
-            </motion.div>
-          </section>
-        )}
+        </div>
 
-        <section className="grid md:grid-cols-3 gap-8">
+        {/* Features / Info Section */}
+        <section className="max-w-7xl mx-auto w-full p-6 md:p-12 grid md:grid-cols-3 gap-8">
           {[
-            { id: 1, title: 'Pembayaran Aman', desc: 'Integrasi Midtrans untuk berbagai pilihan metode pembayaran digital tanpa ribet.', icon: CreditCard },
-            { id: 2, title: 'Notifikasi Email', desc: 'Konfirmasi otomatis dan rincian acara lengkap langsung dikirim ke inbox email Anda.', icon: Mail },
-            { id: 3, title: 'QR Ticket Instan', desc: 'Dapatkan Barcode unik otomatis setelah pembayaran berhasil untuk Check-in cepat.', icon: Stethoscope },
-          ].map((step) => (
-            <div key={step.id} className="bg-white p-8 rounded-2xl border border-slate-200 flex gap-6 group hover:shadow-xl transition-all">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-xl shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                <step.icon size={24} />
+            { id: 1, title: 'Pembayaran Digital', desc: 'Sistem pembayaran terintegrasi Midtrans yang aman dan praktis.', icon: CreditCard },
+            { id: 2, title: 'E-Ticket QR', desc: 'Tiket digital dengan QR code unik untuk proses check-in yang efisien.', icon: Stethoscope },
+            { id: 3, title: 'Agenda Terjadwal', desc: 'Akses agenda lengkap dan materi seminar langsung dari portal.', icon: Calendar },
+          ].map((feature) => (
+            <motion.div 
+              whileHover={{ y: -10 }}
+              key={feature.id} 
+              className="bg-idi-cream/5 border border-idi-gold/20 p-8 rounded-[2.5rem] flex flex-col gap-6"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-idi-gold text-idi-dark flex items-center justify-center shadow-lg shadow-idi-gold/20">
+                <feature.icon size={28} />
               </div>
               <div>
-                <h4 className="font-black text-slate-800 mb-2 uppercase text-xs tracking-[0.1em]">{step.title}</h4>
-                <p className="text-xs text-slate-400 leading-relaxed font-medium">{step.desc}</p>
+                <h4 className="font-serif text-xl font-black text-idi-gold mb-3 tracking-tight">{feature.title}</h4>
+                <p className="text-idi-cream/60 leading-relaxed text-xs font-medium">{feature.desc}</p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </section>
       </main>
 
-      <footer className="h-auto md:h-20 bg-slate-900 text-slate-500 px-6 md:px-12 py-8 flex flex-col md:flex-row items-center justify-between text-[10px] uppercase font-black tracking-[0.2em] shrink-0 mt-auto">
-        <div className="flex flex-col gap-2 mb-6 md:mb-0 text-center md:text-left">
-          <span>© 2026 Musyawarah Wilayah IDI Kalimantan Timur</span>
-          <span className="text-slate-600">Powered by <span className="text-emerald-500/80">Temudok Tech</span></span>
+      <footer className="bg-idi-dark border-t border-idi-gold/10 py-12 px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-12 text-center md:text-left mt-auto">
+        <div className="flex flex-col gap-4">
+           <div className="font-serif text-2xl font-bold text-idi-gold tracking-tight">MUSWIL IDI KALTIM 2026</div>
+           <p className="text-idi-cream/40 text-[10px] font-black uppercase tracking-[0.3em] max-w-sm">
+             IDI berkarya, berkolaborasi, dan bersinergi untuk kesehatan bangsa
+           </p>
+        </div>
+        
+        <div className="flex flex-col gap-6 items-center md:items-end">
+          <div className="flex gap-10 text-[10px] font-black text-idi-gold uppercase tracking-[0.3em]">
+            <button onClick={() => navigate('/dashboard')} className="hover:text-idi-accent transition-colors">Admin Portal</button>
+            <a href="#" className="hover:text-idi-accent transition-colors">Privacy Policy</a>
+          </div>
+          <div className="text-[10px] font-black text-idi-cream/20 uppercase tracking-[0.2em]">
+            © 2026 Ikatan Dokter Indonesia Wilayah Kalimantan Timur
+          </div>
         </div>
       </footer>
 
@@ -364,9 +333,9 @@ function MainApp() {
                     !isSuccess ? (
                       <>
                         <div className="mb-10 text-center">
-                          <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-2">Form Pendaftaran</h2>
-                          <div className="text-xs font-bold text-emerald-600 uppercase mb-4 tracking-widest">{activeEvent.title}</div>
-                          <div className="w-12 h-1 bg-emerald-600 mx-auto rounded-full"></div>
+                          <h2 className="text-2xl font-black font-serif uppercase tracking-tight text-idi-dark mb-2">Form Pendaftaran</h2>
+                          <div className="text-[10px] font-black text-idi-gold uppercase mb-4 tracking-[0.4em]">{activeEvent.title}</div>
+                          <div className="w-12 h-1 bg-idi-gold mx-auto rounded-full"></div>
                         </div>
                         <RegistrationForm 
                           onSuccess={handleSuccess}
@@ -424,22 +393,22 @@ function MainApp() {
 
                 <div className="space-y-4 text-left mb-8">
                   <div className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Order ID</span>
-                    <span className="font-bold text-xs">{statusResultData.order_id}</span>
+                    <span className="text-[10px] font-black uppercase text-idi-gold tracking-[0.2em]">Order ID</span>
+                    <span className="font-bold text-xs text-idi-dark">{statusResultData.order_id}</span>
                   </div>
-                  <div className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Nama</span>
-                    <span className="font-bold text-xs">{statusResultData.custom_field1}</span>
+                  <div className="bg-idi-cream/10 p-4 rounded-2xl flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-idi-gold tracking-[0.2em]">Nama</span>
+                    <span className="font-bold text-xs text-idi-dark">{statusResultData.custom_field1}</span>
                   </div>
-                  <div className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center">
-                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Total</span>
-                    <span className="font-black text-emerald-600">Rp {Number(statusResultData.gross_amount).toLocaleString('id-ID')}</span>
+                  <div className="bg-idi-cream/10 p-4 rounded-2xl flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-idi-gold tracking-[0.2em]">Total</span>
+                    <span className="font-black text-idi-bronze">Rp {Number(statusResultData.gross_amount).toLocaleString('id-ID')}</span>
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setShowStatusResult(false)}
-                  className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all"
+                  className="w-full bg-idi-dark text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.4em] hover:bg-idi-bronze transition-all"
                 >
                   Tutup
                 </button>
