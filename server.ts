@@ -11,6 +11,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, setDoc, updateDoc, getDocs, query, where, orderBy, getDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
 
 dotenv.config();
 
@@ -123,6 +124,25 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = path.join(process.cwd(), 'public/uploads');
+    if (!fs.existsSync(dir)){
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
+
 const RegistrationSchema = z.object({
   fullName: z.string().min(3),
   email: z.string().email(),
@@ -130,7 +150,14 @@ const RegistrationSchema = z.object({
   npa: z.string().optional(), // Nomor Pokok Anggota IDI
   category: z.string(),
   branchId: z.string().optional(),
-  eventId: z.string()
+  eventId: z.string(),
+  kriteria: z.string().optional(),
+  tipePeserta: z.string().optional(),
+  suratMandatUrl: z.string().optional(),
+  komisi: z.string().optional(),
+  perhimpunanName: z.string().optional(),
+  mkekBranch: z.string().optional(),
+  bersedia: z.boolean().optional()
 });
 
   const requireAdmin = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -152,6 +179,15 @@ async function startServer() {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
+
+  app.post('/api/upload', upload.single('file'), (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Tidak ada file yang diunggah' });
+    }
+    const fileUrl = `/uploads/${req.file.filename}`;
+    res.json({ url: fileUrl });
+  });
 
   // API: Create Transaction
   app.post('/api/pay', async (req, res) => {
@@ -240,6 +276,13 @@ async function startServer() {
           category: categoryName,
           categoryId: validatedData.category,
           branchId: validatedData.branchId || '',
+          kriteria: validatedData.kriteria || '',
+          tipePeserta: validatedData.tipePeserta || '',
+          suratMandatUrl: validatedData.suratMandatUrl || '',
+          komisi: validatedData.komisi || '',
+          perhimpunanName: validatedData.perhimpunanName || '',
+          mkekBranch: validatedData.mkekBranch || '',
+          bersedia: validatedData.bersedia || false,
           status: 'settlement',
           amount: 0,
           createdAt: new Date().toISOString(),
@@ -273,6 +316,13 @@ async function startServer() {
         category: categoryName,
         categoryId: validatedData.category,
         branchId: validatedData.branchId || '',
+        kriteria: validatedData.kriteria || '',
+        tipePeserta: validatedData.tipePeserta || '',
+        suratMandatUrl: validatedData.suratMandatUrl || '',
+        komisi: validatedData.komisi || '',
+        perhimpunanName: validatedData.perhimpunanName || '',
+        mkekBranch: validatedData.mkekBranch || '',
+        bersedia: validatedData.bersedia || false,
         status: 'pending',
         amount: price,
         createdAt: new Date().toISOString(),
