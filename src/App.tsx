@@ -295,13 +295,12 @@ function MainApp() {
            </p>
         </div>
         
-        <div className="flex flex-col gap-6 items-center md:items-end">
-          <div className="flex gap-10 text-[10px] font-black text-idi-gold uppercase tracking-[0.3em]">
-            <button onClick={() => navigate('/dashboard')} className="hover:text-idi-accent transition-colors">Admin Portal</button>
-            <a href="#" className="hover:text-idi-accent transition-colors">Privacy Policy</a>
-          </div>
+        <div className="flex flex-col gap-2 items-center md:items-end">
           <div className="text-[10px] font-black text-idi-cream/20 uppercase tracking-[0.2em]">
             © 2026 Ikatan Dokter Indonesia Wilayah Kalimantan Timur
+          </div>
+          <div className="text-[9px] font-bold text-idi-cream/40 uppercase tracking-widest">
+            Made with <span className="text-idi-gold">TemudokTech</span>
           </div>
         </div>
       </footer>
