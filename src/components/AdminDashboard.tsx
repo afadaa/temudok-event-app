@@ -689,7 +689,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                           <td className="p-4 font-bold text-sm text-slate-700">{c.name}</td>
                           <td className="p-4">
                             <span className="font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg text-xs">
-                              {c.price === 0 ? 'Gratis' : `Rp ${c.price.toLocaleString('id-ID')}`}
+                              {`Rp ${c.price.toLocaleString('id-ID')}`}
                             </span>
                           </td>
                           <td className="p-4 text-right">
