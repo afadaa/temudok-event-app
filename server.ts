@@ -8,6 +8,10 @@ import { getFirestore, collection, doc, setDoc, updateDoc, getDocs, query, where
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
+import midtransClient from 'midtrans-client';
+import nodemailer from 'nodemailer';
+import QRCode from 'qrcode';
+import { z } from 'zod';
 
 import apiRoutes from './server/routes/index.ts';
 import { seedDatabase } from './server/services/SeedService.ts';
@@ -175,7 +179,6 @@ const RegistrationSchema = z.object({
     }
   };
 
-=======
 async function startServer() {
   const app = express();
   const PORT = 3000;

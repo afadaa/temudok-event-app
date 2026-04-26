@@ -86,9 +86,10 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
           const events: any[] = await resE.json();
           const event = events.find((e: any) => e.id === selectedEventId);
           if (event && event.categories) {
-            setCategories(event.categories);
-            if (event.categories.length > 0) {
-              setFormData(p => ({ ...p, category: event.categories[0].id }));
+            const paidCategories = event.categories.filter((c: any) => c.price > 0);
+            setCategories(paidCategories);
+            if (paidCategories.length > 0) {
+              setFormData(p => ({ ...p, category: paidCategories[0].id }));
             }
           }
         }
@@ -262,7 +263,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
   }
 
   const selectedCategory = categories.find(c => c.id === formData.category);
-  const priceText = selectedCategory?.price === 0 ? 'Gratis' : 'sebesar Rp 1.250.000,-';
+  const priceText = selectedCategory ? `sebesar Rp ${selectedCategory.price.toLocaleString('id-ID')},-` : '';
 
   return (
     <div className="space-y-6 relative overflow-hidden">
@@ -387,7 +388,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                       </div>
                       <span className="font-bold text-slate-800 uppercase tracking-tight text-sm">{cat.name}</span>
                     </div>
-                    <span className="font-black text-emerald-600 text-lg tracking-tight">{cat.price === 0 ? 'Gratis' : `Rp ${cat.price.toLocaleString('id-ID')}`}</span>
+                    <span className="font-black text-emerald-600 text-lg tracking-tight">{`Rp ${cat.price.toLocaleString('id-ID')}`}</span>
                   </label>
                 ))}
               </div>

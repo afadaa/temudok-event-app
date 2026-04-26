@@ -41,7 +41,11 @@ function MainApp() {
     fetch('/api/events')
       .then(res => res.json())
       .then(data => {
-        setEvents(data);
+        const filteredEvents = data.map((event: any) => ({
+          ...event,
+          categories: event.categories?.filter((c: any) => c.price > 0) || []
+        }));
+        setEvents(filteredEvents);
         setLoadingEvents(false);
       })
       .catch(() => setLoadingEvents(false));
@@ -251,7 +255,7 @@ function MainApp() {
                       <div key={i} className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex justify-between items-center transition-all hover:border-emerald-200 hover:bg-emerald-50/30">
                         <span className="text-slate-600 text-xs font-bold uppercase tracking-tight">{item.name}</span>
                         <span className="text-xl font-black text-emerald-600">
-                          {item.price === 0 ? 'Gratis' : `Rp ${item.price.toLocaleString('id-ID')}`}
+                          {`Rp ${item.price.toLocaleString('id-ID')}`}
                         </span>
                       </div>
                     ))}
