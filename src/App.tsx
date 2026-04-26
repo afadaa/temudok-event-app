@@ -331,17 +331,6 @@ function MainApp() {
           <span>© 2026 Musyawarah Wilayah IDI Kalimantan Timur</span>
           <span className="text-slate-600">Powered by <span className="text-emerald-500/80">Temudok Tech</span></span>
         </div>
-        <div className="flex flex-wrap justify-center gap-6 md:gap-12">
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="hover:text-emerald-500 transition-colors uppercase"
-          >
-            Dashboard Admin
-          </button>
-          <a href="#" className="hover:text-emerald-500 transition-colors">Privacy Policy</a>
-          <a href="#" className="hover:text-emerald-500 transition-colors">Terms of Service</a>
-          <span className="text-emerald-500">Official Partner of IDI</span>
-        </div>
       </footer>
 
       <AnimatePresence>
