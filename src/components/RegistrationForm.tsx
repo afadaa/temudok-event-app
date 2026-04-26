@@ -217,7 +217,16 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
       });
 
       const data = await response.json();
-      const catName = categories.find(c => c.id === formData.category)?.name || formData.category;
+      let catName = categories.find(c => c.id === formData.category)?.name || formData.category;
+      if (formData.kriteria === 'ASAL IDI CABANG' && formData.tipePeserta && formData.branchId) {
+        catName = `${formData.tipePeserta.split(' ')[0]} ${formData.branchId}`;
+      } else if (formData.kriteria === 'PENGURUS IDI WILAYAH KALTIM') {
+        catName = 'PENGURUS IDI WILAYAH KALTIM';
+      } else if (formData.kriteria === 'PERHIMPUNAN DAN KESEMINATAN' && formData.perhimpunanName) {
+        catName = formData.perhimpunanName;
+      } else if (formData.kriteria === 'MKEK' && formData.mkekBranch) {
+        catName = `MKEK ${formData.mkekBranch.replace('PENGURUS ', '')}`;
+      }
 
       if (!response.ok) {
         toast.error(data.message || 'Gagal memproses pendaftaran. Silakan coba lagi.');

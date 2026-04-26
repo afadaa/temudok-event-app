@@ -265,7 +265,19 @@ async function startServer() {
         return res.status(400).json({ message: 'Kategori tiket tidak valid untuk event ini.' });
       }
       price = cat.price;
-      categoryName = cat.name;
+      
+      let dynamicCatName = cat.name;
+      if (validatedData.kriteria === 'ASAL IDI CABANG' && validatedData.tipePeserta && validatedData.branchId) {
+        dynamicCatName = `${validatedData.tipePeserta.split(' ')[0]} ${validatedData.branchId}`;
+      } else if (validatedData.kriteria === 'PENGURUS IDI WILAYAH KALTIM') {
+        dynamicCatName = 'PENGURUS IDI WILAYAH KALTIM';
+      } else if (validatedData.kriteria === 'PERHIMPUNAN DAN KESEMINATAN' && validatedData.perhimpunanName) {
+        dynamicCatName = validatedData.perhimpunanName;
+      } else if (validatedData.kriteria === 'MKEK' && validatedData.mkekBranch) {
+        dynamicCatName = `MKEK ${validatedData.mkekBranch.replace('PENGURUS ', '')}`;
+      }
+      
+      categoryName = dynamicCatName;
 
       // price === 0 condition (Free Registration)
       if (price === 0) {
