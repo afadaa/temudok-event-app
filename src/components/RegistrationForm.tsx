@@ -283,7 +283,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <input 
                   type="text"
                   placeholder="dr. Contoh, Sp.PD"
-                  className={`w-full pl-11 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm ${
+                  className={`w-full pl-11 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm text-slate-900 ${
                     errors.fullName ? 'border-red-200 focus:border-red-600 focus:ring-red-600' : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-600'
                   }`}
                   value={formData.fullName}
@@ -303,7 +303,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <input 
                   type="email"
                   placeholder="nama@email.com"
-                  className={`w-full pl-11 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm ${
+                  className={`w-full pl-11 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm text-slate-900 ${
                     errors.email ? 'border-red-200 focus:border-red-600 focus:ring-red-600' : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-600'
                   }`}
                   value={formData.email}
@@ -326,7 +326,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <input 
                   type="tel"
                   placeholder="0812xxxxxx"
-                  className={`w-full pl-11 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm ${
+                  className={`w-full pl-11 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm text-slate-900 ${
                     errors.phone ? 'border-red-200 focus:border-red-600 focus:ring-red-600' : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-600'
                   }`}
                   value={formData.phone}
@@ -351,7 +351,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <input 
                   type="text"
                   placeholder="Input NPA Anda"
-                  className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all font-medium text-sm"
+                  className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all font-medium text-sm text-slate-900"
                   value={formData.npa}
                   onChange={(e) => handleChange('npa', e.target.value)}
                 />
