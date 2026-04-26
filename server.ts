@@ -2,16 +2,16 @@ import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import midtransClient from 'midtrans-client';
-import nodemailer from 'nodemailer';
-import QRCode from 'qrcode';
-import { z } from 'zod';
 import dotenv from 'dotenv';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, setDoc, updateDoc, getDocs, query, where, orderBy, getDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
+
+import apiRoutes from './server/routes/index.ts';
+import { seedDatabase } from './server/services/SeedService.ts';
+
 
 dotenv.config();
 
@@ -175,8 +175,11 @@ const RegistrationSchema = z.object({
     }
   };
 
+=======
 async function startServer() {
   const app = express();
+  const PORT = 3000;
+
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
   app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
@@ -771,6 +774,11 @@ async function startServer() {
       console.error('Failed to send email:', err);
     }
   }
+  // Initialize Database & Seeding
+  await seedDatabase();
+
+  // API Routes
+  app.use('/api', apiRoutes);
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
