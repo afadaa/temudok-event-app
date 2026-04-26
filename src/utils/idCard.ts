@@ -11,141 +11,265 @@ const loadImage = (src: string) => new Promise<HTMLImageElement>((resolve, rejec
   img.src = src;
 });
 
-export async function composeIdCard(templateSrc: string | undefined, photoSrc: string, name: string, category: string, qrText: string, photoYOffset = 0, nameYOffset = 0) {
+export async function composeIdCard(
+  templateSrc: string | undefined,
+  photoSrc: string,
+  name: string,
+  category: string,
+  qrText: string,
+  photoYOffset = 0,
+  nameYOffset = 0
+) {
   const template = await loadImage(templateSrc || defaultTemplate);
   const photo = photoSrc ? await loadImage(photoSrc).catch(() => null) : null;
-  const qrDataUrl = await QRCode.toDataURL(qrText || name || '');
+  const qrDataUrl = await QRCode.toDataURL(qrText || name || '', { margin: 1 });
 
-  const width = template.width;
+  const width  = template.width;
   const height = template.height;
   const canvas = document.createElement('canvas');
-  canvas.width = width;
+  canvas.width  = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
 
-  // Debug toggle: set window.__IDCARD_DEBUG = true in the browser console to enable outlines/logs
-  const debug = typeof window !== 'undefined' && Boolean((window as any).__IDCARD_DEBUG);
-
-  // base template
+  // ── TEMPLATE ─────────────────────────────────────────────────────────────
   ctx.drawImage(template, 0, 0, width, height);
 
-  // Tinggi header template kira-kira 18% dari height — foto mulai setelah itu
-  const headerH = Math.round(height * 0.18);
-
-  // Sisa area konten (bawah header)
+  // Header tinggi ~22% dari height
+  const headerH  = Math.round(height * 0.22);
   const contentH = height - headerH;
 
   // ── 1. FOTO ──────────────────────────────────────────────────────────────
-  // Framed portrait photo (3:4) with accent border and white inner pad
-  // helper: rounded rectangle drawer
-  function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-    const radius = Math.max(0, r);
+  // Kotak persegi, centered, ukuran 42% lebar kartu
+  const photoSize = Math.round(width * 0.42);
+  const photoX    = Math.round((width - photoSize) / 2);
+  const photoY    = headerH + Math.round(contentH * 0.04) + photoYOffset;
+
+  // ── FRAME MOTIF BATIK KALTIM ─────────────────────────────────────────────
+  const frameW    = Math.round(photoSize * 0.10); // tebal frame
+  const frameX    = photoX - frameW;
+  const frameY    = photoY - frameW;
+  const frameFull = photoSize + frameW * 2;
+
+  // Warna emas khas Kaltim
+  const gold1 = '#8B5E1A';
+  const gold2 = '#C9922A';
+  const gold3 = '#F0C060';
+  const dark  = '#3B1A05';
+
+  // -- Background frame (coklat gelap)
+  ctx.fillStyle = dark;
+  ctx.fillRect(frameX, frameY, frameFull, frameFull);
+
+  // -- Layer gradasi emas
+  const grad = ctx.createLinearGradient(frameX, frameY, frameX + frameFull, frameY + frameFull);
+  grad.addColorStop(0,   gold1);
+  grad.addColorStop(0.3, gold3);
+  grad.addColorStop(0.6, gold2);
+  grad.addColorStop(1,   gold1);
+  ctx.fillStyle = grad;
+  ctx.fillRect(frameX, frameY, frameFull, frameFull);
+
+  // Fungsi helper motif
+  const drawDayakDiamond = (cx: number, cy: number, size: number) => {
+    ctx.save();
+    ctx.fillStyle = dark;
     ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.arcTo(x + w, y, x + w, y + h, radius);
-    ctx.arcTo(x + w, y + h, x, y + h, radius);
-    ctx.arcTo(x, y + h, x, y, radius);
-    ctx.arcTo(x, y, x + w, y, radius);
+    ctx.moveTo(cx, cy - size);
+    ctx.lineTo(cx + size * 0.6, cy);
+    ctx.lineTo(cx, cy + size);
+    ctx.lineTo(cx - size * 0.6, cy);
     ctx.closePath();
+    ctx.fill();
+    // inner highlight
+    ctx.fillStyle = gold3;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - size * 0.5);
+    ctx.lineTo(cx + size * 0.28, cy);
+    ctx.lineTo(cx, cy + size * 0.5);
+    ctx.lineTo(cx - size * 0.28, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+
+  const drawTriangle = (cx: number, cy: number, size: number, up: boolean) => {
+    ctx.save();
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    if (up) {
+      ctx.moveTo(cx, cy - size);
+      ctx.lineTo(cx + size, cy + size);
+      ctx.lineTo(cx - size, cy + size);
+    } else {
+      ctx.moveTo(cx, cy + size);
+      ctx.lineTo(cx + size, cy - size);
+      ctx.lineTo(cx - size, cy - size);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+
+  const drawSpiral = (cx: number, cy: number, r: number) => {
+    ctx.save();
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = Math.max(1, Math.round(r * 0.25));
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 1.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx + r * 0.4, cy - r * 0.4, r * 0.5, Math.PI, Math.PI * 2.5);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  // -- Motif pada 4 sisi frame
+  const unit = frameW * 0.38;
+
+  // SISI ATAS
+  const topY = frameY + frameW / 2;
+  const colsH = Math.floor(frameFull / (unit * 2.2));
+  for (let i = 0; i <= colsH; i++) {
+    const x = frameX + i * (frameFull / colsH);
+    drawDayakDiamond(x, topY, unit * 0.8);
+    if (i < colsH) {
+      drawTriangle(x + frameFull / colsH / 2, topY, unit * 0.35, i % 2 === 0);
+    }
   }
 
-  const photoW = Math.round(width * 0.28);
-  const photoH = Math.round(photoW * 4 / 3);
-  const photoXc = Math.round((width - photoW) / 2);
-  // move photo further down toward the name area
-  const photoYc = headerH + Math.round(contentH * 0.08) + photoYOffset;
-  const frameRadius = Math.round(photoW * 0.03);
+  // SISI BAWAH
+  const botY = frameY + frameFull - frameW / 2;
+  for (let i = 0; i <= colsH; i++) {
+    const x = frameX + i * (frameFull / colsH);
+    drawDayakDiamond(x, botY, unit * 0.8);
+    if (i < colsH) {
+      drawTriangle(x + frameFull / colsH / 2, botY, unit * 0.35, i % 2 !== 0);
+    }
+  }
 
-  // outer accent stroke
-  ctx.lineWidth = Math.max(2, Math.round(width * 0.005));
-  ctx.strokeStyle = '#6b21a8';
-  roundRect(ctx, photoXc - 6, photoYc - 6, photoW + 12, photoH + 12, frameRadius + 4);
-  ctx.stroke();
+  // SISI KIRI
+  const leftX = frameX + frameW / 2;
+  const rowsV = Math.floor(frameFull / (unit * 2.2));
+  for (let i = 0; i <= rowsV; i++) {
+    const y = frameY + i * (frameFull / rowsV);
+    drawDayakDiamond(leftX, y, unit * 0.8);
+    if (i < rowsV) {
+      drawSpiral(leftX, y + frameFull / rowsV / 2, unit * 0.28);
+    }
+  }
 
-  // inner white background
+  // SISI KANAN
+  const rightX = frameX + frameFull - frameW / 2;
+  for (let i = 0; i <= rowsV; i++) {
+    const y = frameY + i * (frameFull / rowsV);
+    drawDayakDiamond(rightX, y, unit * 0.8);
+    if (i < rowsV) {
+      drawSpiral(rightX, y + frameFull / rowsV / 2, unit * 0.28);
+    }
+  }
+
+  // -- 4 Sudut: ornamen bunga/bintang Dayak
+  const drawCornerOrnament = (cx: number, cy: number) => {
+    const s = frameW * 0.42;
+    ctx.save();
+    // Lingkaran luar
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.arc(cx, cy, s, 0, Math.PI * 2);
+    ctx.fill();
+    // Inner emas
+    ctx.fillStyle = gold3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, s * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    // Petal pattern (8 kelopak)
+    for (let a = 0; a < 8; a++) {
+      const angle = (a * Math.PI) / 4;
+      const px = cx + Math.cos(angle) * s * 0.82;
+      const py = cy + Math.sin(angle) * s * 0.82;
+      ctx.fillStyle = dark;
+      ctx.beginPath();
+      ctx.arc(px, py, s * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Center dot
+    ctx.fillStyle = gold1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, s * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  drawCornerOrnament(frameX + frameW / 2,              frameY + frameW / 2);
+  drawCornerOrnament(frameX + frameFull - frameW / 2,  frameY + frameW / 2);
+  drawCornerOrnament(frameX + frameW / 2,              frameY + frameFull - frameW / 2);
+  drawCornerOrnament(frameX + frameFull - frameW / 2,  frameY + frameFull - frameW / 2);
+
+  // -- Garis border dalam frame (inner stroke)
+  ctx.strokeStyle = dark;
+  ctx.lineWidth   = Math.max(1, Math.round(frameW * 0.08));
+  ctx.strokeRect(frameX, frameY, frameFull, frameFull);
+  ctx.strokeStyle = gold3;
+  ctx.lineWidth   = Math.max(1, Math.round(frameW * 0.04));
+  ctx.strokeRect(photoX - 2, photoY - 2, photoSize + 4, photoSize + 4);
+
+  // ── FOTO (di dalam frame) ─────────────────────────────────────────────────
+  // Background putih foto
   ctx.fillStyle = '#ffffff';
-  roundRect(ctx, photoXc, photoYc, photoW, photoH, frameRadius);
-  ctx.fill();
+  ctx.fillRect(photoX, photoY, photoSize, photoSize);
 
-  // draw photo clipped to inner area
+  // Gambar foto
   if (photo) {
     const minSide = Math.min(photo.width, photo.height);
-    const sx = (photo.width - minSide) / 2;
+    const sx = (photo.width  - minSide) / 2;
     const sy = (photo.height - minSide) / 2;
     ctx.save();
-    roundRect(ctx, photoXc, photoYc, photoW, photoH, frameRadius);
+    ctx.beginPath();
+    ctx.rect(photoX, photoY, photoSize, photoSize);
     ctx.clip();
-    ctx.drawImage(photo, sx, sy, minSide, minSide, photoXc, photoYc, photoW, photoH);
+    ctx.drawImage(photo, sx, sy, minSide, minSide, photoX, photoY, photoSize, photoSize);
     ctx.restore();
   }
 
   // ── 2. NAMA ──────────────────────────────────────────────────────────────
-  const nameFontSize = Math.round(width * 0.06);
-  // bring the name lower so its top approaches the QR area
-  const nameY        = photoYc + photoH + Math.round(contentH * 0.02) + nameYOffset;
-  ctx.fillStyle  = '#0b1220';
+  const nameFontSize = Math.round(width * 0.058);
+  const nameY        = photoY + photoSize + Math.round(contentH * 0.10) + nameYOffset;
+  ctx.fillStyle  = '#0f172a';
   ctx.textAlign  = 'center';
-  ctx.font       = `700 ${nameFontSize}px serif`;
+  ctx.font       = `bold ${nameFontSize}px sans-serif`;
   ctx.fillText(name.toUpperCase(), width / 2, nameY);
 
   // ── 3. DIVIDER ───────────────────────────────────────────────────────────
-  const dividerY = nameY + Math.round(contentH * 0.01);
-  ctx.strokeStyle = 'rgba(11,18,32,0.18)';
-  ctx.lineWidth   = Math.max(1, Math.round(width * 0.002));
-  const divW = Math.round(width * 0.30);
-  const divStart  = Math.round((width - divW) / 2);
-  const divEnd    = divStart + divW;
+  const dividerY = nameY + Math.round(contentH * 0.013);
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth   = Math.max(1, Math.round(width * 0.0015));
+  const divStart  = Math.round(width * 0.28);
+  const divEnd    = width - divStart;
   ctx.beginPath();
   ctx.moveTo(divStart, dividerY);
-  ctx.lineTo(divEnd,   dividerY);
+  ctx.lineTo(divEnd, dividerY);
   ctx.stroke();
 
   // ── 4. KATEGORI ──────────────────────────────────────────────────────────
   const catFontSize = Math.round(width * 0.028);
-  const catY        = dividerY + Math.round(contentH * 0.028);
+  const catY        = dividerY + Math.round(contentH * 0.040);
   ctx.fillStyle = '#1f2937';
-  ctx.font      = `600 ${catFontSize}px sans-serif`;
+  ctx.font      = `${catFontSize}px sans-serif`;
   ctx.fillText(category.toUpperCase(), width / 2, catY);
 
   // ── 5. LABEL "ID REGISTRASI" ─────────────────────────────────────────────
-  const idLabelY   = catY + Math.round(contentH * 0.04);
-  const idFontSize = Math.round(width * 0.02);
+  const idLabelY   = catY + Math.round(contentH * 0.055);
+  const idFontSize = Math.round(width * 0.022);
   ctx.fillStyle = '#374151';
-  ctx.font      = `700 ${idFontSize}px sans-serif`;
-  ctx.fillText('ID REGISTRASI', width / 2, idLabelY);
+  ctx.font      = `bold ${idFontSize}px sans-serif`;
+//   ctx.fillText('ID REGISTRASI', width / 2, idLabelY);
 
-// ── 6. KOTAK + QR CODE ───────────────────────────────────────────────────
-// Ukuran kotak dibatasi agar tidak melewati batas bawah kartu
-const maxBoxBottom = height - Math.round(height * 0.04); // 4% margin bawah
-const idBoxSize    = Math.round(width * 0.36);
-const idBoxX       = Math.round((width - idBoxSize) / 2);
-const idBoxY       = idLabelY + Math.round(contentH * 0.016);
-
-// Pastikan kotak tidak melewati batas bawah
-const safeBoxSize  = Math.min(idBoxSize, maxBoxBottom - idBoxY);
-
-// Decorative QR frame and drawing
-const qrImg      = await loadImage(qrDataUrl);
-const qrInset    = Math.max(4, Math.round(safeBoxSize * 0.04));
-const qrDrawSize = safeBoxSize - qrInset * 2;
-
-// outer thin rect (subtle)
-ctx.save();
-ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-ctx.lineWidth = Math.max(1, Math.round(width * 0.0018));
-ctx.strokeRect(idBoxX, idBoxY, safeBoxSize, safeBoxSize);
-ctx.restore();
-
-// dashed inner guide
-ctx.save();
-ctx.setLineDash([4,3]);
-ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-ctx.lineWidth = Math.max(1, Math.round(width * 0.002));
-ctx.strokeRect(idBoxX + qrInset, idBoxY + qrInset, qrDrawSize, qrDrawSize);
-ctx.restore();
-
-// draw QR slightly inset so corners of guide show
-ctx.drawImage(qrImg, idBoxX + qrInset + 2, idBoxY + qrInset + 2, qrDrawSize - 4, qrDrawSize - 4);
+  // ── 6. QR CODE (tanpa background, ukuran 50%) ────────────────────────────
+  const qrImg      = await loadImage(qrDataUrl);
+const qrSize     = Math.round(width * 0.21); // 40% dari lebar kartu
+  const qrX        = Math.round((width - qrSize) / 2);
+  const qrY        = idLabelY + Math.round(contentH * 0.035);
+  ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
   return canvas;
 }

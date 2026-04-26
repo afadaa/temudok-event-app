@@ -98,7 +98,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <div className="w-16 h-16 bg-idi-goldd-100 text-idi-goldd-600 rounded-full flex items-center justify-center mx-auto mb-6">
+  <div className="w-16 h-16 bg-idi-gold/10 text-idi-gold rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle2 size={32} />
         </div>
         <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-2">Pendaftaran Selesai!</h2>
@@ -136,8 +136,8 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
 
               <div>
                 <p className="text-[9px] font-black uppercase text-idi-cream/60 tracking-widest mb-1">Kategori Peserta</p>
-                <div className="inline-block bg-idi-goldd-50 border border-idi-goldd-200 px-3 py-1 rounded-full">
-                  <p className="text-xs font-black uppercase text-idi-goldd-700 m-0">{data.category}</p>
+                <div className="inline-block bg-idi-gold/10 border border-idi-gold/20 px-3 py-1 rounded-full">
+                  <p className="text-xs font-black uppercase text-idi-gold m-0">{data.category}</p>
                 </div>
               </div>
 
@@ -168,26 +168,26 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
 
             {/* Footer */}
             <div className="flex flex-col items-center">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-idi-goldd-600" />
-                <p className="text-[9px] font-black uppercase text-idi-goldd-700 tracking-wider m-0">Verified Access</p>
+                <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-idi-gold" />
+                <p className="text-[9px] font-black uppercase text-idi-gold tracking-wider m-0">Verified Access</p>
               </div>
             </div>
           </div>
 
           {/* Side indicator */}
-          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 h-12 w-1 bg-idi-goldd-600 rounded-tr-md rounded-br-md"></div>
+          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 h-12 w-1 bg-idi-gold rounded-tr-md rounded-br-md"></div>
         </div>
       </div>
 
       <div className="flex flex-col gap-3">
         {!localPhotoUrl && (
           <div className="mb-2">
-            <label className="w-full flex items-center justify-center gap-3 bg-idi-goldd-50 border-2 border-dashed border-idi-goldd-200 py-4 rounded-2xl cursor-pointer hover:bg-idi-goldd-100 transition-all group">
-              {isUploading ? <RefreshCw size={20} className="animate-spin text-idi-goldd-600" /> : <Camera size={20} className="text-idi-goldd-600 group-hover:scale-110 transition-transform" />}
+            <label className="w-full flex items-center justify-center gap-3 bg-idi-gold/10 border-2 border-dashed border-idi-gold/20 py-4 rounded-2xl cursor-pointer hover:bg-idi-gold/10 transition-all group">
+              {isUploading ? <RefreshCw size={20} className="animate-spin text-idi-gold" /> : <Camera size={20} className="text-idi-gold group-hover:scale-110 transition-transform" />}
               <div className="flex flex-col items-start leading-tight">
-                <span className="text-[11px] font-black text-idi-goldd-700 uppercase tracking-wider">Unggah Foto Peserta</span>
-                <span className="text-[9px] font-bold text-idi-goldd-500 uppercase">Wajib untuk kartu peserta</span>
+                <span className="text-[11px] font-black text-idi-gold uppercase tracking-wider">Unggah Foto Peserta</span>
+                <span className="text-[9px] font-bold text-idi-gold/70 uppercase">Wajib untuk kartu peserta</span>
               </div>
               <input type="file" className="hidden" accept="image/png, image/jpeg, image/jpg" onChange={handlePhotoUpload} disabled={isUploading} />
             </label>
