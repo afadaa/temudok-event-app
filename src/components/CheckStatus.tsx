@@ -96,11 +96,11 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
       <div className="flex items-center gap-4 mb-2">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+          className="p-2 hover:bg-idi-cream/10 rounded-full transition-colors text-idi-cream/80"
         >
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-xl font-bold text-slate-800">Cek Status Pembayaran</h2>
+        <h2 className="text-xl font-bold text-idi-dark">Cek Status Pembayaran</h2>
       </div>
 
       <form onSubmit={fetchStatus} className="space-y-4">
@@ -108,29 +108,29 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
           <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Order ID / ID Pesanan</label>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
-            <input 
-              type="text"
-              placeholder="Contoh: MUSWIL-IDI-171..."
-              className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all font-medium text-sm"
-              value={orderId}
-              onChange={(e) => setOrderId(e.target.value)}
-              required
-            />
+              <input 
+                type="text"
+                placeholder="Contoh: MUSWIL-IDI-171..."
+                className="w-full pl-11 pr-4 py-4 bg-idi-cream/5 border border-slate-200 rounded-xl focus:border-idi-gold focus:ring-1 focus:ring-idi-gold outline-none transition-all font-medium text-sm text-idi-dark"
+                value={orderId}
+                onChange={(e) => setOrderId(e.target.value)}
+                required
+              />
           </div>
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
+          className="w-full bg-idi-gold hover:bg-idi-accent text-idi-dark font-bold py-4 rounded-xl transition-all shadow-lg shadow-idi-gold/20 flex items-center justify-center gap-2"
         >
-          {loading ? (
-            <Loader2 className="animate-spin" size={20} />
-          ) : (
-            <>
-              <Search size={20} />
-              Cek Status
-            </>
-          )}
+        {loading ? (
+          <Loader2 className="animate-spin" size={20} />
+        ) : (
+          <>
+            <Search size={20} />
+            Cek Status
+          </>
+        )}
         </button>
       </form>
 
@@ -157,9 +157,9 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
                <div className="relative">
                  <button 
                    onClick={() => setShowTicket(false)}
-                   className="absolute top-0 left-0 p-2 text-slate-400 hover:text-slate-600 z-10"
+                   className="absolute top-0 left-0 p-2 text-idi-cream/80 hover:text-idi-dark z-10"
                  >
-                   <ArrowLeft size={16} />
+                    <ArrowLeft size={16} />
                  </button>
                  <TicketDownload 
                     data={{
@@ -172,13 +172,13 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
                  />
                </div>
             ) : (
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 text-center space-y-4">
+              <div className="bg-idi-cream/5 border border-slate-100 rounded-2xl p-6 text-center space-y-4">
                 <div className="flex justify-center">
                   {getStatusIcon(statusData.transaction_status)}
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-800 text-lg">
-                    {getStatusLabel(statusData.transaction_status)}
+                  <h3 className="font-bold text-idi-dark text-lg">
+                      {getStatusLabel(statusData.transaction_status)}
                   </h3>
                   <p className="text-slate-500 text-sm mt-1">ID Pesanan: {statusData.order_id}</p>
                 </div>
@@ -186,19 +186,19 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
                 <div className="grid grid-cols-2 gap-4 text-left border-t border-slate-200 pt-4 mt-6">
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Bayar</p>
-                    <p className="text-sm font-bold text-slate-700">Rp {parseInt(statusData.gross_amount).toLocaleString()}</p>
+                      <p className="text-sm font-bold text-idi-dark">Rp {parseInt(statusData.gross_amount).toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Metode</p>
-                    <p className="text-sm font-bold text-slate-700 uppercase">{statusData.payment_type?.replace(/_/g, ' ')}</p>
+                      <p className="text-sm font-bold text-idi-dark uppercase">{statusData.payment_type?.replace(/_/g, ' ')}</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Waktu Transaksi</p>
-                    <p className="text-sm font-bold text-slate-700">{new Date(statusData.transaction_time).toLocaleDateString('id-ID', { dateStyle: 'medium' })}</p>
+                      <p className="text-sm font-bold text-idi-dark">{new Date(statusData.transaction_time).toLocaleDateString('id-ID', { dateStyle: 'medium' })}</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fraud Status</p>
-                    <p className={`text-sm font-bold uppercase ${statusData.fraud_status === 'accept' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      <p className={`text-sm font-bold uppercase ${statusData.fraud_status === 'accept' ? 'text-idi-gold' : 'text-amber-600'}`}>
                       {statusData.fraud_status}
                     </p>
                   </div>
@@ -206,13 +206,13 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
 
                 {(statusData.transaction_status === 'settlement' || statusData.transaction_status === 'capture') && (
                   <div className="pt-4 space-y-3">
-                    <div className="p-3 bg-emerald-50 rounded-lg text-emerald-700 text-[11px] font-medium leading-relaxed">
+                    <div className="p-3 bg-idi-gold/10 rounded-lg text-idi-dark text-[11px] font-medium leading-relaxed">
                       Tiket telah dikirim ke email pendaftar. Anda juga dapat mengunduh tiket digital langsung di sini.
                     </div>
-                    <button 
-                      onClick={() => setShowTicket(true)}
-                      className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10"
-                    >
+                      <button 
+                        onClick={() => setShowTicket(true)}
+                        className="w-full flex items-center justify-center gap-2 bg-idi-dark text-idi-cream py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-idi-gold transition-all shadow-lg shadow-idi-dark/10"
+                      >
                       <Download size={16} />
                       Lihat & Unduh Tiket
                     </button>

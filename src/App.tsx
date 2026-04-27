@@ -21,6 +21,40 @@ interface Event {
   categories: { id: string; name: string; price: number; }[];
 }
 
+// Decorative components for Kalimantan feel
+const DayakShield = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 100 200" className={className} fill="currentColor">
+    <path d="M50 0 L90 30 L90 170 L50 200 L100 170 L10 170 L10 30 Z" opacity="0.1" />
+    <path d="M50 10 L80 35 L80 165 L50 190 L20 165 L20 35 Z" fill="none" stroke="currentColor" strokeWidth="2" />
+    <path d="M50 30 C30 50 20 80 50 110 C80 80 70 50 50 30" fill="none" stroke="currentColor" strokeWidth="1" />
+    <path d="M50 170 C30 150 20 120 50 90 C80 120 70 150 50 170" fill="none" stroke="currentColor" strokeWidth="1" />
+    <circle cx="50" cy="100" r="5" />
+  </svg>
+);
+
+const EnggangIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 100 100" className={className} fill="currentColor">
+    <path d="M20 50 C20 30 40 10 70 10 C80 10 90 20 90 30 C90 40 80 40 70 40 C60 40 50 50 50 60 C50 70 60 80 80 80 L80 90 C50 90 20 70 20 50" />
+    <path d="M70 25 A5 5 0 1 0 70 26" fill="white" />
+  </svg>
+);
+
+const BatikPattern = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 100 100" className={className} fill="currentColor" opacity="0.05">
+    <path d="M0 50 Q25 0 50 50 T100 50 T50 50 T0 50" fill="none" stroke="currentColor" strokeWidth="2" />
+    <path d="M50 0 Q100 25 50 50 T50 100 T50 50 T50 0" fill="none" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
+
+const OrangutanIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 100 100" className={className} fill="currentColor">
+    <path d="M50 10 C30 10 10 30 10 50 C10 70 30 90 50 90 C70 90 90 70 90 50 C90 30 70 10 50 10 M50 20 C65 20 75 30 75 45 C75 60 65 70 50 70 C35 70 25 60 25 45 C25 30 35 20 50 20" />
+    <circle cx="40" cy="40" r="3" fill="white" />
+    <circle cx="60" cy="40" r="3" fill="white" />
+    <path d="M40 55 Q50 60 60 55" fill="none" stroke="white" strokeWidth="2" />
+  </svg>
+);
+
 function MainApp() {
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
@@ -36,6 +70,8 @@ function MainApp() {
   const [events, setEvents] = useState<Event[]>([]);
   const [currentEventIdx, setCurrentEventIdx] = useState(0);
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [showAgenda, setShowAgenda] = useState(false);
 
   useEffect(() => {
     fetch('/api/events')
@@ -141,16 +177,59 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen bg-idi-dark text-idi-cream font-sans flex flex-col bg-ornament">
+    <div className="min-h-screen bg-idi-dark text-idi-cream font-sans flex flex-col bg-ornament relative overflow-hidden">
+      {/* Decorative Floating Elements */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <motion.div 
+          animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-[20%] left-[5%] text-idi-gold opacity-20"
+        >
+          <DayakShield className="w-32 h-64" />
+        </motion.div>
+        
+        <motion.div 
+          animate={{ y: [0, 30, 0], rotate: [0, -10, 0] }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute bottom-[20%] right-[3%] text-idi-gold opacity-20"
+        >
+          <DayakShield className="w-40 h-80" />
+        </motion.div>
+
+        <motion.div 
+          animate={{ x: [0, 20, 0], y: [0, 10, 0] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-[40%] right-[10%] text-idi-gold opacity-10"
+        >
+          <EnggangIcon className="w-48 h-48" />
+        </motion.div>
+
+        <motion.div 
+          animate={{ y: [0, -40, 0], x: [0, 10, 0] }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute bottom-[10%] left-[15%] text-idi-gold opacity-5"
+        >
+          <OrangutanIcon className="w-32 h-32" />
+        </motion.div>
+
+        <div className="absolute top-0 left-0 w-full h-full opacity-30">
+          <BatikPattern className="absolute top-20 left-1/4 w-64 h-64" />
+          <BatikPattern className="absolute bottom-40 right-1/4 w-96 h-96" />
+        </div>
+      </div>
+
       <nav className="h-24 border-b border-idi-gold/20 bg-idi-dark/80 backdrop-blur-md px-6 md:px-12 flex items-center justify-between shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-4">
             <div className="relative group">
-            <img
+            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-500 overflow-hidden">
+              <img
               src="/IDI.png"
               alt="IDI Logo"
-              className="w-14 h-14 bg-white rounded-full shadow-lg object-contain border-2 border-idi-red p-1 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500"
-            />
-            <div className="absolute -inset-1 border border-idi-gold/30 rounded-full animate-pulse group-hover:animate-none group-hover:border-idi-accent transition-all duration-500"></div>
+              className="w-10 h-10 object-contain"
+              draggable={false}
+              />
+            </div>
+            <div className="absolute -inset-1 border border-idi-gold/30 rounded-full animate-pulse"></div>
             </div>
           <div className="flex flex-col">
             <span className="font-serif-sc text-sm tracking-widest text-idi-gold leading-tight">Ikatan Dokter Indonesia</span>
@@ -160,8 +239,8 @@ function MainApp() {
         <div className="hidden lg:flex gap-10 text-[10px] font-black text-idi-cream/60 uppercase tracking-[0.3em]">
           <a href="#" className="text-idi-accent border-b border-idi-accent pb-1 uppercase">Beranda</a>
           <button onClick={() => openForm('status')} className="hover:text-idi-accent transition-colors uppercase">Cek Status</button>
-          <a href="#agenda" className="hover:text-idi-accent transition-colors uppercase">Agenda</a>
-          <a href="#lokasi" className="hover:text-idi-accent transition-colors uppercase">Lokasi</a>
+          <button onClick={() => setShowAgenda(true)} className="hover:text-idi-accent transition-colors uppercase">Agenda</button>
+          <a href="https://maps.app.goo.gl/3JXD2LiUgcdiua7K6" target="_blank" rel="noreferrer" className="hover:text-idi-accent transition-colors uppercase">Lokasi</a>
         </div>
         <div className="flex gap-4">
           <button 
@@ -203,20 +282,33 @@ function MainApp() {
                  transition={{ delay: 0.4 }}
                  className="flex flex-wrap justify-center gap-6 mb-12"
                >
-                 <div className="flex items-center gap-3 bg-idi-dark text-idi-cream px-8 py-4 rounded-full shadow-xl">
+                 {activeEvent && (
+                   <>
+                   <div className="flex items-center gap-3 bg-idi-dark text-idi-cream px-8 py-4 rounded-full shadow-xl">
                     <Calendar className="text-idi-gold" size={20} />
                     <span className="font-serif text-lg font-bold">
-                      {activeEvent
-                      ? `${new Date(activeEvent.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - ${new Date(activeEvent.endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                      {new Date(activeEvent.startDate).toLocaleDateString('id-ID', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric'
+                      })}
+                      {activeEvent.endDate && activeEvent.endDate !== activeEvent.startDate
+                      ? ` - ${new Date(activeEvent.endDate).toLocaleDateString('id-ID', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric'
+                        })}`
                       : ''}
                     </span>
-                 </div>
-                 <div className="flex items-center gap-3 bg-white border-2 border-idi-gold/30 text-idi-dark px-8 py-4 rounded-full shadow-xl">
-                  <MapPin className="text-idi-bronze" size={20} />
-                  <span className="font-serif text-lg font-bold">
-                    {activeEvent ? activeEvent.location : ''}
-                  </span>
-                 </div>
+                   </div>
+                   <div className="flex items-center gap-3 bg-white border-2 border-idi-gold/30 text-idi-dark px-8 py-4 rounded-full shadow-xl">
+                    <MapPin className="text-idi-bronze" size={20} />
+                    <span className="font-serif text-lg font-bold">
+                      {activeEvent.location}
+                    </span>
+                   </div>
+                   </>
+                 )}
                </motion.div>
             </div>
             
@@ -234,6 +326,7 @@ function MainApp() {
                     className="grid grid-cols-1 lg:grid-cols-2 gap-12"
                   >
                     <div className="bg-idi-dark text-idi-cream p-12 rounded-[3.5rem] shadow-2xl relative overflow-hidden group">
+                      <div className="absolute inset-0 opacity-10 bg-ornament pointer-events-none"></div>
                       <div className="absolute top-0 right-0 w-32 h-32 bg-idi-gold/10 rounded-full translate-x-8 -translate-y-8"></div>
                       <div className="relative z-10">
                         <h4 className="font-serif text-3xl font-bold mb-6 text-idi-gold">{activeEvent.title}</h4>
@@ -262,29 +355,6 @@ function MainApp() {
             ) : null}
           </div>
         </div>
-
-        {/* Features / Info Section */}
-        <section className="max-w-7xl mx-auto w-full p-6 md:p-12 grid md:grid-cols-3 gap-8">
-          {[
-            { id: 1, title: 'Pembayaran Digital', desc: 'Sistem pembayaran terintegrasi Midtrans yang aman dan praktis.', icon: CreditCard },
-            { id: 2, title: 'E-Ticket QR', desc: 'Tiket digital dengan QR code unik untuk proses check-in yang efisien.', icon: Stethoscope },
-            { id: 3, title: 'Agenda Terjadwal', desc: 'Akses agenda lengkap dan materi seminar langsung dari portal.', icon: Calendar },
-          ].map((feature) => (
-            <motion.div 
-              whileHover={{ y: -10 }}
-              key={feature.id} 
-              className="bg-idi-cream/5 border border-idi-gold/20 p-8 rounded-[2.5rem] flex flex-col gap-6"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-idi-gold text-idi-dark flex items-center justify-center shadow-lg shadow-idi-gold/20">
-                <feature.icon size={28} />
-              </div>
-              <div>
-                <h4 className="font-serif text-xl font-black text-idi-gold mb-3 tracking-tight">{feature.title}</h4>
-                <p className="text-idi-cream/60 leading-relaxed text-xs font-medium">{feature.desc}</p>
-              </div>
-            </motion.div>
-          ))}
-        </section>
       </main>
 
       <footer className="bg-idi-dark border-t border-idi-gold/10 py-12 px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-12 text-center md:text-left mt-auto">
@@ -295,12 +365,13 @@ function MainApp() {
            </p>
         </div>
         
-        <div className="flex flex-col gap-2 items-center md:items-end">
+        <div className="flex flex-col gap-6 items-center md:items-end">
+          <div className="flex gap-10 text-[10px] font-black text-idi-gold uppercase tracking-[0.3em]">
+            <button onClick={() => navigate('/dashboard')} className="hover:text-idi-accent transition-colors">Admin Portal</button>
+            <a href="#" className="hover:text-idi-accent transition-colors">Privacy Policy</a>
+          </div>
           <div className="text-[10px] font-black text-idi-cream/20 uppercase tracking-[0.2em]">
             © 2026 Ikatan Dokter Indonesia Wilayah Kalimantan Timur
-          </div>
-          <div className="text-[9px] font-bold text-idi-cream/40 uppercase tracking-widest">
-            Made with <span className="text-idi-gold">TemudokTech</span>
           </div>
         </div>
       </footer>
@@ -325,6 +396,7 @@ function MainApp() {
               >
                 <X size={20} />
               </button>
+                {/* stray buttons removed (close buttons belong to their own modals) */}
 
               <div className="max-h-[85vh] overflow-y-auto">
                 <div className="p-10 md:p-12">
@@ -415,6 +487,20 @@ function MainApp() {
             </motion.div>
           </motion.div>
         )}
+        {/* Agenda modal with two images */}
+        <AnimatePresence>
+          {showAgenda && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white w-[60vw] max-w-[900px] rounded-3xl shadow-2xl p-4 relative mx-auto">
+                <button onClick={() => setShowAgenda(false)} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900"><X size={20} /></button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <img src="/agenda1.png" alt="Agenda 1" className="w-full h-auto max-h-[85vh] object-contain rounded-lg" />
+                  <img src="/agenda2.png" alt="Agenda 2" className="w-full h-auto max-h-[85vh] object-contain rounded-lg" />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </AnimatePresence>
     </div>
   );
@@ -442,4 +528,3 @@ function KioskCheckinWrapper() {
   const navigate = useNavigate();
   return <KioskCheckin onBack={() => navigate('/')} />;
 }
-

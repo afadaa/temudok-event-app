@@ -4,7 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Muswil IDI Kaltim 2026</title>
-    <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="SET_VIA_ENV"></script>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <!-- Midtrans Snap SDK is injected at runtime so the client key can come from environment variables -->
+    <script type="module">
+      // Vite exposes env variables that start with VITE_ via import.meta.env
+      const MIDTRANS_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY || '';
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
+      if (MIDTRANS_CLIENT_KEY) {
+        script.setAttribute('data-client-key', MIDTRANS_CLIENT_KEY);
+      }
+      document.head.appendChild(script);
+    </script>
   </head>
   <body>
     <div id="root"></div>

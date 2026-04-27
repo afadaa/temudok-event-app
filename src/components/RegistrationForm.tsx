@@ -278,8 +278,8 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
     <div className="space-y-6 relative overflow-hidden">
       {/* Progress Indicator */}
       <div className="flex items-center justify-center gap-2 mb-8">
-        <div className={`h-2 rounded-full transition-all duration-500 ${currentSlide === 1 ? 'w-16 bg-emerald-600' : 'w-8 bg-slate-200'}`} />
-        <div className={`h-2 rounded-full transition-all duration-500 ${currentSlide === 2 ? 'w-16 bg-emerald-600' : 'w-8 bg-slate-200'}`} />
+        <div className={`h-2 rounded-full transition-all duration-500 ${currentSlide === 1 ? 'w-16 bg-idi-gold' : 'w-8 bg-slate-200'}`} />
+        <div className={`h-2 rounded-full transition-all duration-500 ${currentSlide === 2 ? 'w-16 bg-idi-gold' : 'w-8 bg-slate-200'}`} />
       </div>
 
       <div className={`transition-all duration-500 transform ${currentSlide === 1 ? 'translate-x-0 opacity-100' : '-translate-x-full absolute inset-0 opacity-0 pointer-events-none'}`}>
@@ -292,8 +292,8 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <input 
                   type="text"
                   placeholder="dr. Contoh, Sp.PD"
-                  className={`w-full pl-11 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm text-slate-900 ${
-                    errors.fullName ? 'border-red-200 focus:border-red-600 focus:ring-red-600' : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-600'
+                  className={`w-full pl-11 pr-4 py-4 bg-idi-cream/5 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm text-idi-dark ${
+                    errors.fullName ? 'border-red-200 focus:border-red-600 focus:ring-red-600' : 'border-slate-200 focus:border-idi-gold focus:ring-idi-gold'
                   }`}
                   value={formData.fullName}
                   onChange={(e) => handleChange('fullName', e.target.value)}
@@ -312,8 +312,8 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <input 
                   type="email"
                   placeholder="nama@email.com"
-                  className={`w-full pl-11 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm text-slate-900 ${
-                    errors.email ? 'border-red-200 focus:border-red-600 focus:ring-red-600' : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-600'
+                  className={`w-full pl-11 pr-4 py-4 bg-idi-cream/5 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm text-idi-dark ${
+                    errors.email ? 'border-red-200 focus:border-red-600 focus:ring-red-600' : 'border-slate-200 focus:border-idi-gold focus:ring-idi-gold'
                   }`}
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
@@ -335,8 +335,8 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <input 
                   type="tel"
                   placeholder="0812xxxxxx"
-                  className={`w-full pl-11 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm text-slate-900 ${
-                    errors.phone ? 'border-red-200 focus:border-red-600 focus:ring-red-600' : 'border-slate-200 focus:border-emerald-600 focus:ring-emerald-600'
+                  className={`w-full pl-11 pr-4 py-4 bg-idi-cream/5 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm text-idi-dark ${
+                    errors.phone ? 'border-red-200 focus:border-red-600 focus:ring-red-600' : 'border-slate-200 focus:border-idi-gold focus:ring-idi-gold'
                   }`}
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
@@ -351,7 +351,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
             <div className="space-y-1.5">
               <div className="flex justify-between items-center ml-1">
                 <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400">NPA IDI (Opsional)</label>
-                <a href="https://www.idionline.org/organisasi/info/diranggota" target="_blank" rel="noreferrer" className="text-[9px] font-bold text-emerald-600 hover:underline">
+                <a href="https://www.idionline.org/organisasi/info/diranggota" target="_blank" rel="noreferrer" className="text-[9px] font-bold text-idi-gold hover:underline">
                   Cek NPA Disini
                 </a>
               </div>
@@ -360,7 +360,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <input 
                   type="text"
                   placeholder="Input NPA Anda"
-                  className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all font-medium text-sm text-slate-900"
+                  className="w-full pl-11 pr-4 py-4 bg-idi-cream/5 border border-slate-200 rounded-xl focus:border-idi-gold focus:ring-1 focus:ring-idi-gold outline-none transition-all font-medium text-sm text-idi-dark"
                   value={formData.npa}
                   onChange={(e) => handleChange('npa', e.target.value)}
                 />
@@ -378,7 +378,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                   <label 
                     key={cat.id}
                     className={`flex items-center justify-between p-5 rounded-2xl border-2 cursor-pointer transition-all ${
-                      formData.category === cat.id ? 'border-emerald-600 bg-emerald-50/30 shadow-sm' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'
+                      formData.category === cat.id ? 'border-idi-gold bg-idi-gold/10 shadow-sm' : 'border-slate-100 bg-idi-cream/5 hover:border-slate-200'
                     }`}
                   >
                     <input 
@@ -391,13 +391,13 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                     />
                     <div className="flex items-center gap-4">
                       <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                        formData.category === cat.id ? 'border-emerald-600' : 'border-slate-300'
+                        formData.category === cat.id ? 'border-idi-gold' : 'border-slate-300'
                       }`}>
-                        {formData.category === cat.id && <div className="w-3 h-3 bg-emerald-600 rounded-full"></div>}
+                        {formData.category === cat.id && <div className="w-3 h-3 bg-idi-gold rounded-full"></div>}
                       </div>
                       <span className="font-bold text-slate-800 uppercase tracking-tight text-sm">{cat.name}</span>
                     </div>
-                    <span className="font-black text-emerald-600 text-lg tracking-tight">{`Rp ${cat.price.toLocaleString('id-ID')}`}</span>
+                    <span className="font-black text-idi-gold text-lg tracking-tight">{`Rp ${cat.price.toLocaleString('id-ID')}`}</span>
                   </label>
                 ))}
               </div>
@@ -413,7 +413,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
             <button 
               type="button"
               onClick={handleNextSlide}
-              className="w-full group flex items-center justify-center gap-2 bg-emerald-600 text-white px-8 py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-xs transition-all hover:bg-emerald-700 shadow-xl shadow-emerald-900/10 active:scale-[0.98]"
+              className="w-full group flex items-center justify-center gap-2 bg-idi-gold text-white px-8 py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-xs transition-all hover:bg-idi-accent shadow-xl shadow-idi-gold/10 active:scale-[0.98]"
             >
               Selanjutnya
               <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
@@ -427,7 +427,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Kriteria Peserta Musyawarah Wilayah</label>
             <div className="relative">
-              <Select
+                <Select
                 options={KRITERIA_OPTIONS}
                 placeholder="Pilih Kriteria Peserta"
                 isSearchable={false}
@@ -439,11 +439,11 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                   control: (base, state) => ({
                     ...base,
                     backgroundColor: '#f8fafc',
-                    borderColor: state.isFocused ? '#059669' : errors.kriteria ? '#fca5a5' : '#e2e8f0',
+                    borderColor: state.isFocused ? '#b7832a' : errors.kriteria ? '#fca5a5' : '#e2e8f0',
                     borderRadius: '0.75rem',
                     padding: '0.5rem',
-                    boxShadow: state.isFocused ? '0 0 0 1px #059669' : 'none',
-                    '&:hover': { borderColor: state.isFocused ? '#059669' : '#cbd5e1' }
+                    boxShadow: state.isFocused ? '0 0 0 1px #b7832a' : 'none',
+                    '&:hover': { borderColor: state.isFocused ? '#b7832a' : '#cbd5e1' }
                   }),
                 }}
               />
@@ -472,14 +472,14 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Tipe Peserta</label>
                 <div className="grid grid-cols-2 gap-3">
                   {['UTUSAN IDI CABANG', 'PENINJAU IDI CABANG'].map(tipe => (
-                    <label key={tipe} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.tipePeserta === tipe ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-100 bg-slate-50'}`}>
-                      <input type="radio" name="tipePeserta" className="hidden" value={tipe} checked={formData.tipePeserta === tipe} onChange={(e) => handleChange('tipePeserta', e.target.value)} />
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${formData.tipePeserta === tipe ? 'border-emerald-600' : 'border-slate-300'}`}>
-                        {formData.tipePeserta === tipe && <div className="w-2 h-2 bg-emerald-600 rounded-full"></div>}
-                      </div>
-                      <span className="font-bold text-slate-700 text-xs">{tipe}</span>
-                    </label>
-                  ))}
+                      <label key={tipe} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.tipePeserta === tipe ? 'border-idi-gold bg-idi-gold/10' : 'border-slate-100 bg-idi-cream/5'}`}>
+                        <input type="radio" name="tipePeserta" className="hidden" value={tipe} checked={formData.tipePeserta === tipe} onChange={(e) => handleChange('tipePeserta', e.target.value)} />
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${formData.tipePeserta === tipe ? 'border-idi-gold' : 'border-slate-300'}`}>
+                          {formData.tipePeserta === tipe && <div className="w-2 h-2 bg-idi-gold rounded-full"></div>}
+                        </div>
+                        <span className="font-bold text-slate-700 text-xs">{tipe}</span>
+                      </label>
+                    ))}
                 </div>
                 {errors.tipePeserta && <div className="text-[10px] text-red-500 font-bold ml-1">{errors.tipePeserta}</div>}
               </div>
@@ -520,10 +520,10 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                     'SIDANG KOMISI B ( PELAYANAN PROFESI KEDOKTERAN )',
                     'SIDANG KOMISI C ( PENDIDIKAN DOKTER DAN CPD )'
                   ].map(komisi => (
-                    <label key={komisi} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.komisi === komisi ? 'border-emerald-600 bg-emerald-50/50' : 'border-slate-100 bg-slate-50'}`}>
+                    <label key={komisi} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.komisi === komisi ? 'border-idi-gold bg-idi-gold/10' : 'border-slate-100 bg-idi-cream/5'}`}>
                       <input type="radio" name="komisi" className="hidden" value={komisi} checked={formData.komisi === komisi} onChange={(e) => handleChange('komisi', e.target.value)} />
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${formData.komisi === komisi ? 'border-emerald-600' : 'border-slate-300'}`}>
-                        {formData.komisi === komisi && <div className="w-2 h-2 bg-emerald-600 rounded-full"></div>}
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${formData.komisi === komisi ? 'border-idi-gold' : 'border-slate-300'}`}>
+                        {formData.komisi === komisi && <div className="w-2 h-2 bg-idi-gold rounded-full"></div>}
                       </div>
                       <span className="font-bold text-slate-700 text-xs">{komisi}</span>
                     </label>
@@ -567,10 +567,10 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
           )}
 
           {formData.kriteria && (
-            <div className="mt-8 p-5 bg-emerald-50 rounded-2xl border border-emerald-100 animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="mt-8 p-5 bg-idi-gold/10 rounded-2xl border border-idi-gold/10 animate-in fade-in slide-in-from-top-4 duration-300">
               <label className="flex items-start gap-4 cursor-pointer">
                 <div className="pt-1 shrink-0">
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${formData.bersedia ? 'bg-emerald-600 border-emerald-600' : 'bg-white border-slate-300'}`}>
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${formData.bersedia ? 'bg-idi-gold border-idi-gold' : 'bg-white border-slate-300'}`}>
                     {formData.bersedia && <CheckCircle2 className="text-white" size={14} />}
                   </div>
                 </div>
@@ -583,11 +583,11 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
             </div>
           )}
 
-          <div className="pt-6 flex gap-4">
+            <div className="pt-6 flex gap-4">
             <button 
               type="button"
               onClick={handlePrevSlide}
-              className="px-6 py-5 rounded-2xl font-black uppercase tracking-[0.1em] text-xs transition-all border-2 border-slate-200 text-slate-500 hover:bg-slate-50 active:scale-[0.98]"
+              className="px-6 py-5 rounded-2xl font-black uppercase tracking-[0.1em] text-xs transition-all border-2 border-idi-gold text-idi-gold hover:bg-idi-gold/10 active:scale-[0.98]"
             >
               <ChevronLeft size={16} />
             </button>
@@ -595,11 +595,11 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
               onClick={handleSubmit}
               disabled={loading || !formData.kriteria}
               type="button"
-              className="flex-1 group flex items-center justify-center gap-2 bg-slate-900 text-white px-8 py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-xs transition-all hover:bg-emerald-600 disabled:opacity-50 shadow-xl shadow-slate-900/10 active:scale-[0.98]"
+              className="flex-1 group flex items-center justify-center gap-2 bg-idi-gold text-white px-8 py-5 rounded-2xl font-black uppercase tracking-[0.15em] text-xs transition-all hover:bg-idi-accent disabled:opacity-50 shadow-xl shadow-idi-gold/10 active:scale-[0.98]"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : 'Buat Pesanan'}
             </button>
-          </div>
+            </div>
           
         </div>
       </div>
