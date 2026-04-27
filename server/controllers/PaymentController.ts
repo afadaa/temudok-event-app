@@ -18,7 +18,7 @@ export class PaymentController {
           details: parseResult.error.format() 
         });
       }
-      const validatedData = parseResult.data;
+      const validatedData = parseResult.data;``
 
       // Check if email already registered for THIS event
       let existingRef;

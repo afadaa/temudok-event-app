@@ -445,6 +445,8 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                     boxShadow: state.isFocused ? '0 0 0 1px #b7832a' : 'none',
                     '&:hover': { borderColor: state.isFocused ? '#b7832a' : '#cbd5e1' }
                   }),
+                  singleValue: (base) => ({ ...base, color: '#0f172a', fontWeight: '600' }),
+                  placeholder: (base) => ({ ...base, color: '#94a3b8' }),
                 }}
               />
             </div>
@@ -463,7 +465,12 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                   value={formData.branchId ? { value: formData.branchId, label: formData.branchId } : null}
                   onChange={(option) => handleChange('branchId', option ? option.value : '')}
                   menuPortalTarget={document.body}
-                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: (base) => ({ ...base, borderRadius: '0.75rem', padding: '0.5rem', borderColor: errors.branchId ? '#fca5a5' : '#e2e8f0' }) }}
+                  styles={{ 
+                    menuPortal: base => ({ ...base, zIndex: 9999 }), 
+                    control: (base) => ({ ...base, borderRadius: '0.75rem', padding: '0.5rem', backgroundColor: '#f8fafc', borderColor: errors.branchId ? '#fca5a5' : '#e2e8f0' }),
+                    singleValue: (base) => ({ ...base, color: '#0f172a', fontWeight: '600' }),
+                    input: (base) => ({ ...base, color: '#0f172a' }),
+                  }}
                 />
                 {errors.branchId && <div className="text-[10px] text-red-500 font-bold ml-1">{errors.branchId}</div>}
               </div>
@@ -539,7 +546,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
               <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Perhimpunan dan Keseminatan</label>
               <textarea 
                 placeholder="CONTOH : POGI, PERDOSKI, PAPDI, PERDAMI, dll"
-                className={`w-full p-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm min-h-[100px] resize-none ${errors.perhimpunanName ? 'border-red-200 focus:border-red-600' : 'border-slate-200 focus:border-emerald-600'}`}
+                className={`w-full p-4 bg-slate-50 border rounded-xl focus:ring-1 outline-none transition-all font-medium text-sm min-h-[100px] resize-none text-slate-900 ${errors.perhimpunanName ? 'border-red-200 focus:border-red-600' : 'border-slate-200 focus:border-emerald-600'}`}
                 value={formData.perhimpunanName}
                 onChange={(e) => handleChange('perhimpunanName', e.target.value)}
               />
@@ -560,7 +567,12 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 value={formData.mkekBranch ? { value: formData.mkekBranch, label: formData.mkekBranch } : null}
                 onChange={(option) => handleChange('mkekBranch', option ? option.value : '')}
                 menuPortalTarget={document.body}
-                styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }), control: (base) => ({ ...base, borderRadius: '0.75rem', padding: '0.5rem', borderColor: errors.mkekBranch ? '#fca5a5' : '#e2e8f0' }) }}
+                styles={{ 
+                  menuPortal: base => ({ ...base, zIndex: 9999 }), 
+                  control: (base) => ({ ...base, borderRadius: '0.75rem', padding: '0.5rem', backgroundColor: '#f8fafc', borderColor: errors.mkekBranch ? '#fca5a5' : '#e2e8f0' }),
+                  singleValue: (base) => ({ ...base, color: '#0f172a', fontWeight: '600' }),
+                  input: (base) => ({ ...base, color: '#0f172a' }),
+                }}
               />
               {errors.mkekBranch && <div className="text-[10px] text-red-500 font-bold ml-1">{errors.mkekBranch}</div>}
             </div>
