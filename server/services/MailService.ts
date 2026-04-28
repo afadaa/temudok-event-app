@@ -87,3 +87,30 @@ export async function sendTicketEmail(data: any) {
     console.error('Failed to send email:', err);
   }
 }
+
+export async function sendBroadcastEmail(options: { emails: string[]; subject: string; html: string }) {
+  const { emails, subject, html } = options;
+  if (!emails || emails.length === 0) return;
+
+  const fromAddress = process.env.MAIL_FROM_ADDRESS || 'noreply@idikaltim.org';
+  const fromName = process.env.MAIL_FROM_NAME || 'Muswil IDI Kaltim';
+
+  const uniqueEmails = Array.from(new Set(emails.filter(e => !!e)));
+  const mailOptions = {
+    from: `"${fromName}" <${fromAddress}>`,
+    bcc: uniqueEmails.join(','),
+    subject,
+    html,
+  } as any;
+
+  try {
+    if (!process.env.MAIL_USERNAME || process.env.MAIL_USERNAME === 'MY_EMAIL_USER') {
+      console.log('Mode Demo/Placeholder: Broadcast email not actually sent. Recipients:', uniqueEmails.length, 'Subject:', subject);
+      return;
+    }
+    await transporter.sendMail(mailOptions);
+    console.log('Broadcast email sent to', uniqueEmails.length, 'recipients');
+  } catch (err) {
+    console.error('Failed to send broadcast email:', err);
+  }
+}

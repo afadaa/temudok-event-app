@@ -12,6 +12,7 @@ router.get('/events', EventController.getPublicEvents);
 router.get('/branches', PublicController.getBranches);
 router.get('/categories', PublicController.getCategories);
 router.post('/pay', PaymentController.createTransaction);
+router.get('/payment-status/by-email', PaymentController.getPaymentStatusByEmail);
 router.get('/payment-status/:orderId', PaymentController.getPaymentStatus);
 router.post('/update-photo', PublicController.updatePhoto);
 router.post('/webhook', PaymentController.handleWebhook);

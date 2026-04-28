@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, adminDb } from '../config/firebase.ts';
+import { sendTicketEmail, sendBroadcastEmail } from '../services/MailService.ts';
 
 export class AdminController {
   static async getRegistrations(req: Request, res: Response) {
@@ -57,6 +58,36 @@ export class AdminController {
         const snap = await ref.get();
         if (!snap.exists) return res.status(404).json({ error: 'Registration not found' });
         await ref.update({ status: 'settlement', paymentVerified: true, updatedAt: new Date().toISOString() });
+        // attempt to send ticket email (non-blocking for response)
+        try {
+          const data = snap.data();
+          await sendTicketEmail({
+            order_id: orderId,
+            customer_details: {
+              first_name: data.fullName,
+              email: data.email,
+              phone: data.phone
+            },
+            custom_field1: data.fullName,
+            custom_field2: data.category,
+            custom_field3: data.eventTitle
+          });
+        } catch (emailErr) {
+          console.error('Failed to send ticket email after admin mark-paid (adminDb):', emailErr);
+        }
+
+        // broadcast to event participants or related list (non-blocking)
+        try {
+          const data = snap.data();
+          // Example: send a short broadcast only to the single recipient to confirm
+          // You can expand this to query more recipients for the event if needed
+          const subject = `Konfirmasi Pembayaran - ${data.eventTitle || ''}`;
+          const html = `<p>Halo ${data.fullName},</p><p>Pembayaran untuk order <strong>${orderId}</strong> telah dikonfirmasi oleh admin. E-Tiket telah dikirim ke email Anda.</p>`;
+          sendBroadcastEmail({ emails: [data.email], subject, html }).catch(err => console.error('Broadcast error:', err));
+        } catch (bErr) {
+          console.error('Failed to trigger broadcast after admin mark-paid (adminDb):', bErr);
+        }
+
         return res.json({ success: true });
       }
 
@@ -64,10 +95,40 @@ export class AdminController {
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists()) return res.status(404).json({ error: 'Registration not found' });
       await updateDoc(docRef, { status: 'settlement', paymentVerified: true, updatedAt: new Date().toISOString() });
+
+      // attempt to send ticket email
+      try {
+        const data = docSnap.data();
+        await sendTicketEmail({
+          order_id: orderId,
+          customer_details: {
+            first_name: data.fullName,
+            email: data.email,
+            phone: data.phone
+          },
+          custom_field1: data.fullName,
+          custom_field2: data.category,
+          custom_field3: data.eventTitle
+        });
+      } catch (emailErr) {
+        console.error('Failed to send ticket email after admin mark-paid:', emailErr);
+      }
+
+      // send a small broadcast/confirmation to the registrant (non-blocking)
+      try {
+        const data = docSnap.data();
+        const subject = `Konfirmasi Pembayaran - ${data.eventTitle || ''}`;
+        const html = `<p>Halo ${data.fullName},</p><p>Pembayaran untuk order <strong>${orderId}</strong> telah dikonfirmasi oleh admin. E-Tiket telah dikirim ke email Anda.</p>`;
+        sendBroadcastEmail({ emails: [data.email], subject, html }).catch(err => console.error('Broadcast error:', err));
+      } catch (bErr) {
+        console.error('Failed to trigger broadcast after admin mark-paid:', bErr);
+      }
+
       res.json({ success: true });
     } catch (error) {
       console.error('markAsPaid Error:', error);
-      res.status(500).json({ error: 'Failed to update registration status' });
+      // return a bit more info for debugging (non-sensitive)
+      res.status(500).json({ error: (error && (error as any).message) ? (error as any).message : 'Failed to update registration status' });
     }
   }
 

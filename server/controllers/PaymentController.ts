@@ -161,11 +161,20 @@ export class PaymentController {
   static async getPaymentStatus(req: Request, res: Response) {
     try {
       const orderId = req.params.orderId;
-      const docRef = doc(db, 'registrations', orderId);
-      const docSnap = await getDoc(docRef);
+      let docRef = doc(db, 'registrations', orderId);
+      let docSnap = await getDoc(docRef);
 
+      // If no document with the id, try to find a registration where the field orderId matches
       if (!docSnap.exists()) {
-        return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+        const q = query(collection(db, 'registrations'), where('orderId', '==', orderId));
+        const qSnap = await getDocs(q);
+        if (qSnap.empty) {
+          return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+        }
+        // use first matched document
+        const found = qSnap.docs[0];
+        docRef = doc(db, 'registrations', found.id);
+        docSnap = await getDoc(docRef);
       }
 
       const regData = docSnap.data();
@@ -211,6 +220,31 @@ export class PaymentController {
       }
     } catch (error) {
       res.status(500).json({ error: 'Gagal mengambil status' });
+    }
+  }
+
+  static async getPaymentStatusByEmail(req: Request, res: Response) {
+    try {
+      const email = (req.query.email as string || '').trim();
+      if (!email) return res.status(400).json({ error: 'Email query parameter is required' });
+
+      const q = query(collection(db, 'registrations'), where('email', '==', email));
+      const snap = await getDocs(q);
+      const items = snap.docs.map(d => {
+        const data: any = d.data();
+        return {
+          orderId: d.id || data.orderId || null,
+          status: data.status,
+          amount: data.amount,
+          eventTitle: data.eventTitle,
+          createdAt: data.createdAt,
+        };
+      });
+      // always return 200 with results (may be empty)
+      return res.status(200).json({ results: items });
+    } catch (error) {
+      console.error('getPaymentStatusByEmail error:', error);
+      return res.status(500).json({ error: 'Gagal mengambil data berdasarkan email' });
     }
   }
 
