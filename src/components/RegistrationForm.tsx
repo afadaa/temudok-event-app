@@ -33,7 +33,9 @@ const KRITERIA_OPTIONS = [
   { value: 'MKEK', label: 'MKEK' }
 ];
 
-const IDI_CABANG_OPTIONS = [
+
+
+const MKEK_OPTIONS = [
   { value: 'IDI CABANG PASER', label: 'IDI CABANG PASER' },
   { value: 'IDI CABANG PPU', label: 'IDI CABANG PPU' },
   { value: 'IDI CABANG BALIKPAPAN', label: 'IDI CABANG BALIKPAPAN' },
@@ -219,13 +221,15 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
       const data = await response.json();
       let catName = categories.find(c => c.id === formData.category)?.name || formData.category;
       if (formData.kriteria === 'ASAL IDI CABANG' && formData.tipePeserta && formData.branchId) {
-        catName = `${formData.tipePeserta.split(' ')[0]} ${formData.branchId}`;
+        const branchName = branches.find(b => b.id === formData.branchId)?.name || formData.branchId;
+        catName = `${formData.tipePeserta.split(' ')[0]} ${branchName}`;
       } else if (formData.kriteria === 'PENGURUS IDI WILAYAH KALTIM') {
         catName = 'PENGURUS IDI WILAYAH KALTIM';
       } else if (formData.kriteria === 'PERHIMPUNAN DAN KESEMINATAN' && formData.perhimpunanName) {
         catName = formData.perhimpunanName;
       } else if (formData.kriteria === 'MKEK' && formData.mkekBranch) {
-        catName = `MKEK ${formData.mkekBranch.replace('PENGURUS ', '')}`;
+        const branchName = branches.find(b => b.id === formData.mkekBranch)?.name || formData.mkekBranch;
+        catName = `MKEK ${branchName.replace('PENGURUS ', '')}`;
       }
 
       if (!response.ok) {
@@ -273,6 +277,8 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
 
   const selectedCategory = categories.find(c => c.id === formData.category);
   const priceText = selectedCategory ? `sebesar Rp ${selectedCategory.price.toLocaleString('id-ID')},-` : '';
+
+  const dynamicCabangOptions = branches.map(b => ({ value: b.id, label: b.name }));
 
   return (
     <div className="space-y-6 relative overflow-hidden">
@@ -459,10 +465,10 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Asal IDI Cabang</label>
                 <Select
-                  options={IDI_CABANG_OPTIONS}
+                  options={dynamicCabangOptions}
                   placeholder="Pilih IDI Cabang"
                   isSearchable
-                  value={formData.branchId ? { value: formData.branchId, label: formData.branchId } : null}
+                  value={dynamicCabangOptions.find(o => o.value === formData.branchId) || null}
                   onChange={(option) => handleChange('branchId', option ? option.value : '')}
                   menuPortalTarget={document.body}
                   styles={{ 
@@ -560,7 +566,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
               <Select
                 options={[
                   { value: 'PENGURUS IDI WILAYAH KALTIM', label: 'PENGURUS IDI WILAYAH KALTIM' },
-                  ...IDI_CABANG_OPTIONS
+                  ...MKEK_OPTIONS
                 ]}
                 placeholder="Pilih Asal MKEK"
                 isSearchable

@@ -55,21 +55,26 @@ const db = getFirestore(firebaseApp, config.firestoreDatabaseId);
     await getDocs(query(collection(db, 'registrations'), where('__name__', '==', 'test')));
     console.log('Firestore connection verified');
     
-    // Seed Admin User
-    const adminUsername = process.env.ADMIN_USERNAME || 'adminidikaltim2026';
-    const plainPassword = process.env.ADMIN_PASSWORD || '1d1k4lt!m2026';
-    const adminRef = doc(db, 'admins', adminUsername);
-    const adminSnap = await getDoc(adminRef);
+    // Seed Admin User - Only if environment variables are provided
+    const adminUsername = process.env.ADMIN_USERNAME;
+    const plainPassword = process.env.ADMIN_PASSWORD;
 
-    if (!adminSnap.exists()) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(plainPassword, salt);
-      await setDoc(adminRef, {
-        username: adminUsername,
-        password: hashedPassword,
-        createdAt: new Date().toISOString()
-      });
-      console.log('Admin user seeded in Firestore.');
+    if (adminUsername && plainPassword) {
+      const adminRef = doc(db, 'admins', adminUsername);
+      const adminSnap = await getDoc(adminRef);
+
+      if (!adminSnap.exists()) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(plainPassword, salt);
+        await setDoc(adminRef, {
+          username: adminUsername,
+          password: hashedPassword,
+          createdAt: new Date().toISOString()
+        });
+        console.log(`Admin user '${adminUsername}' seeded in Firestore.`);
+      }
+    } else {
+      console.warn('ADMIN_USERNAME or ADMIN_PASSWORD not found in .env. Skipping admin seeding.');
     }
 
     // Seed Initial Event if none exists

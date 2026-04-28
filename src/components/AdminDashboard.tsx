@@ -551,6 +551,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     <thead>
                       <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 whitespace-nowrap">
                         <th className="px-6 py-4">Pendaftar</th>
+                        <th className="px-6 py-4">Email</th>
+                        <th className="px-6 py-4">No. HP</th>
                         <th className="px-6 py-4">Kategori</th>
                         <th className="px-6 py-4">Cabang</th>
                         <th className="px-6 py-4">Status</th>
@@ -563,8 +565,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         <tr key={r.id}>
                           <td className="px-6 py-4">
                             <div className="font-bold text-slate-800">{r.fullName}</div>
-                            <div className="text-[11px] text-slate-500">{r.id} | {r.email}</div>
+                            <div className="text-[11px] text-slate-500">ID: {r.id}</div>
                           </td>
+                          <td className="px-6 py-4 text-[13px] text-slate-600">{r.email}</td>
+                          <td className="px-6 py-4 text-[13px] text-slate-600">{r.phone}</td>
                           <td className="px-6 py-4"><span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase">{r.category}</span></td>
                           <td className="px-6 py-4 font-semibold text-slate-600">{branchName}</td>
                           <td className="px-6 py-4">
