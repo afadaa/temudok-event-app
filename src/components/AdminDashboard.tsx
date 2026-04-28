@@ -599,14 +599,18 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         <tr key={r.id}>
                           <td className="px-6 py-4">
                             {r.paymentPhoto ? (() => {
-                              const photoUrl = r.paymentPhoto.startsWith('/') ? r.paymentPhoto : `/uploads/${r.paymentPhoto}`;
+                              // support: data URLs (base64), absolute URLs, or stored filename
+                              let photoUrl = r.paymentPhoto;
+                              if (!photoUrl.startsWith('data:') && !photoUrl.startsWith('http') && !photoUrl.startsWith('/')) {
+                                photoUrl = `/uploads/${photoUrl}`;
+                              }
                               return (
-                                <button onClick={() => openImage(photoUrl)} className="p-0 border-0 bg-transparent rounded-md overflow-hidden">
-                                  <img src={photoUrl} alt="bukti" className="w-16 h-12 object-cover rounded-md border" />
+                                <button onClick={() => openImage(photoUrl)} className="p-0 border-0 bg-transparent rounded-md overflow-hidden" title="Lihat bukti">
+                                  <img src={photoUrl} alt={`bukti-${r.id}`} className="w-16 h-12 object-cover rounded-md border" />
                                 </button>
                               );
                             })() : (
-                              <div className="w-16 h-12 bg-slate-50 rounded-md flex items-center justify-center text-slate-300">{r.paymentPhoto}</div>
+                              <div className="w-16 h-12 bg-slate-50 rounded-md flex items-center justify-center text-slate-300">—</div>
                             )}
                           </td>
                           <td className="px-6 py-4">

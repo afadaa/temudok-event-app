@@ -752,22 +752,73 @@ async function startServer() {
         const fileUrl = `/uploads/${finalName}`;
         const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
 
-        // Try to persist to Firestore if adminDb available (privileged). If not, skip DB write.
+        // Persist base64 data URL into Firestore.photoUrl as requested (if size fits rules)
         try {
-          if (adminDb) {
-            const regRef = adminDb.collection('registrations').doc(orderId);
-            const regSnap = await regRef.get();
-            if (!regSnap.exists) {
-              // remove file to avoid orphan
-              try { fs.unlinkSync(outPath); } catch (e) {}
-              return res.status(404).json({ error: 'Registration not found' });
-            }
-            await regRef.update({ paymentPhoto: fileUrl, paymentPhotoUrl: fullUrl, updatedAt: new Date().toISOString() });
+          // Reconstruct data URL (if input had prefix use that, otherwise build it)
+          const inputData = String(data);
+          const dataUrlFull = matches ? inputData : `data:${mimeType};base64,${base64}`;
+
+          // Enforce Firestore rule: photoUrl max ~1,048,576 characters
+          if (dataUrlFull.length > 1048576) {
+            // cleanup file to avoid orphan
+            try { fs.unlinkSync(outPath); } catch (e) {}
+            return res.status(400).json({ error: 'Base64 data too large for Firestore (max 1,048,576 characters). Please compress or resize image.' });
           }
+
+            // We'll persist both a storage/file reference (paymentPhoto) and the
+            // base64 data URL (photoUrl) so clients (TicketDownload) can render
+            // immediately while admins can see the uploaded file path.
+            // Persist base64 under `paymentPhoto` (so it doesn't override
+            // the attendee `photoUrl` used for ticket photos). Also store
+            // the uploaded file path in `paymentPhotoFile` for admin reference.
+            const updatePayload: any = {
+              paymentPhoto: dataUrlFull,
+              paymentPhotoFile: fileUrl,
+              updatedAt: new Date().toISOString()
+            };
+
+            if (adminDb) {
+              const regRef = adminDb.collection('registrations').doc(orderId);
+              const regSnap = await regRef.get();
+              if (!regSnap.exists) {
+                try { fs.unlinkSync(outPath); } catch (e) {}
+                return res.status(404).json({ error: 'Registration not found' });
+              }
+              await regRef.update(updatePayload);
+            } else {
+              // client SDK fallback — Firestore rules must allow at least photoUrl.
+              const docRef = doc(db, 'registrations', orderId);
+              const docSnap = await getDoc(docRef);
+              if (!docSnap.exists()) {
+                try { fs.unlinkSync(outPath); } catch (e) {}
+                return res.status(404).json({ error: 'Registration not found' });
+              }
+
+              try {
+                // Try updating paymentPhoto & paymentPhotoFile. If permission denied
+                // for these fields, fall back to updating only paymentPhoto (if allowed).
+                await updateDoc(docRef, updatePayload);
+              } catch (partialErr: any) {
+                console.warn('Client SDK update for paymentPhoto failed, attempting to persist paymentPhoto only:', partialErr?.message || partialErr);
+                try {
+                  await updateDoc(docRef, { paymentPhoto: dataUrlFull, updatedAt: new Date().toISOString() });
+                } catch (updateErr: any) {
+                  console.error('Firestore update error (client SDK) for paymentPhoto after fallback:', updateErr);
+                  try { fs.unlinkSync(outPath); } catch (e) {}
+                  if (updateErr?.code === 7 || updateErr?.message?.includes('PERMISSION_DENIED')) {
+                    return res.status(403).json({ error: 'Permission denied when updating Firestore. Initialize firebase-admin with service account credentials or adjust Firestore rules.' });
+                  }
+                  throw updateErr;
+                }
+              }
+            }
         } catch (dbErr) {
           console.error('Failed to persist base64 payment photo to Firestore:', dbErr);
           // cleanup file on DB failure
           try { fs.unlinkSync(outPath); } catch (e) {}
+          if (dbErr?.code === 7 || String(dbErr).includes('PERMISSION_DENIED')) {
+            return res.status(403).json({ error: 'Permission denied when updating Firestore. Initialize firebase-admin with service account credentials or adjust Firestore rules.' });
+          }
           return res.status(500).json({ error: 'Failed to save payment photo to database', detail: String(dbErr) });
         }
 
