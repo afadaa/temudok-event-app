@@ -374,7 +374,7 @@ function MainApp() {
                     </div>
 
                     <div className="flex flex-col justify-center">
-                       <h3 className="font-serif text-4xl font-black text-idi-dark mb-6 leading-tight">Berkarir, Berkolaborasi, & Bersinergi</h3>
+                       <h3 className="font-serif text-4xl font-black text-idi-dark mb-6 leading-tight">Berkarya, Berkolaborasi, & Bersinergi</h3>
                        <p className="text-idi-dark/60 text-lg mb-10 leading-relaxed font-medium">
                          Silakan mendaftar untuk menjadi bagian dari Musyawarah Wilayah IDI Kaltim 2026.
                        </p>
