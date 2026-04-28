@@ -27,13 +27,13 @@ service cloud.firestore {
         return data.fullName is string && data.fullName.size() <= 200
             && data.email is string && data.email.size() <= 200
             && data.status in ['pending', 'settlement', 'capture', 'expire', 'cancel', 'deny', 'failure']
-            && (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 1048576)); // Max 1MB for base64
+            && (!('paymentPhoto' in data) || (data.paymentPhoto is string && data.paymentPhoto.size() <= 1048576)); // Max 1MB for document total
       }
 
       allow get, list: if true; // Public can check status if they have ID, list allowed for admin panel (server-side)
       allow create: if isValidRegistration(incoming());
       allow update: if isValidRegistration(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'transactionId', 'paymentType', 'photoUrl'])
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'transactionId', 'paymentType', 'paymentPhoto'])
       );
       allow delete: if existing().status != 'settlement' && existing().status != 'capture';
     }
