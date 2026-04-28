@@ -19,6 +19,8 @@ interface Registrant {
   status: string;
   amount: number;
   createdAt: string;
+  paymentPhoto?: string;
+  photoUrl?: string;
 }
 
 interface Branch { id: string; name: string; }
@@ -325,6 +327,37 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     return matchSearch && matchCat && matchStatus;
   });
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredRegistrants.length / pageSize));
+  const pagedRegistrants = filteredRegistrants.slice((page - 1) * pageSize, page * pageSize);
+
+  // Image modal
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
+  const openImage = (url: string) => {
+    setImageModalUrl(url);
+    setImageModalOpen(true);
+  };
+  const closeImage = () => { setImageModalOpen(false); setImageModalUrl(null); };
+
+  const markAsPaid = async (orderId: string) => {
+    if (!window.confirm('Tandai pesanan ini sebagai LUNAS?')) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/mark-paid', { method: 'POST', headers: { ...authHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId }) });
+      if (res.ok) {
+        toast.success('Status pembayarannya diperbarui');
+        await fetchRegistrants();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Gagal memperbarui status');
+      }
+    } catch (e) { toast.error('Terjadi kesalahan jaringan'); }
+    finally { setLoading(false); }
+  };
+
   const handleExport = async () => {
     if (filteredRegistrants.length === 0) {
       toast.error('Tidak ada data untuk diekspor');
@@ -550,6 +583,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   <table className="w-full text-left max-w-full">
                     <thead>
                       <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 whitespace-nowrap">
+                        <th className="px-6 py-4">Bukti</th>
                         <th className="px-6 py-4">Pendaftar</th>
                         <th className="px-6 py-4">Email</th>
                         <th className="px-6 py-4">No. HP</th>
@@ -559,10 +593,22 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 text-sm">
-                      {filteredRegistrants.map(r => {
+                      {pagedRegistrants.map(r => {
                         const branchName = branches.find(b => b.id === r.branchId)?.name || r.branchId || '-';
                         return (
                         <tr key={r.id}>
+                          <td className="px-6 py-4">
+                            {r.paymentPhoto ? (() => {
+                              const photoUrl = r.paymentPhoto.startsWith('/') ? r.paymentPhoto : `/uploads/${r.paymentPhoto}`;
+                              return (
+                                <button onClick={() => openImage(photoUrl)} className="p-0 border-0 bg-transparent rounded-md overflow-hidden">
+                                  <img src={photoUrl} alt="bukti" className="w-16 h-12 object-cover rounded-md border" />
+                                </button>
+                              );
+                            })() : (
+                              <div className="w-16 h-12 bg-slate-50 rounded-md flex items-center justify-center text-slate-300">{r.paymentPhoto}</div>
+                            )}
+                          </td>
                           <td className="px-6 py-4">
                             <div className="font-bold text-slate-800">{r.fullName}</div>
                             <div className="text-[11px] text-slate-500">ID: {r.id}</div>
@@ -572,9 +618,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                           <td className="px-6 py-4"><span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase">{r.category}</span></td>
                           <td className="px-6 py-4 font-semibold text-slate-600">{branchName}</td>
                           <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded text-[10px] uppercase font-black tracking-widest ${r.status === 'settlement' || r.status === 'capture' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
-                              {r.status}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded text-[10px] uppercase font-black tracking-widest ${r.status === 'settlement' || r.status === 'capture' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
+                                {r.status}
+                              </span>
+                              {r.status !== 'settlement' && r.status !== 'capture' && (
+                                <button onClick={() => markAsPaid(r.id)} className="text-xs font-black text-white bg-emerald-600 px-3 py-1 rounded-full hover:bg-emerald-700">Tandai Lunas</button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       )})}
@@ -589,6 +640,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     <p className="text-xs text-slate-400 font-bold uppercase mt-1">Belum ada peserta yang mendaftar atau sesuaikan filter Anda.</p>
                   </div>
                 )}
+              </div>
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-slate-500">Halaman {page} dari {totalPages}</div>
+                <div className="flex items-center gap-2">
+                  <button disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="px-3 py-2 bg-white border rounded-lg text-sm">Prev</button>
+                  <button disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="px-3 py-2 bg-white border rounded-lg text-sm">Next</button>
+                </div>
               </div>
             </div>
           )}
@@ -858,6 +917,22 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               >
                 Batalkan
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Modal */}
+      {imageModalOpen && imageModalUrl && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+          <div className="bg-white max-w-4xl w-full rounded-2xl p-4 relative">
+            <div className="absolute top-4 right-4">
+              <button onClick={closeImage} className="p-2 rounded-full bg-slate-50 hover:bg-slate-100">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex items-center justify-center">
+              <img src={imageModalUrl} alt="bukti" className="max-h-[80vh] max-w-full object-contain" />
             </div>
           </div>
         </div>

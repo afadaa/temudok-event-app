@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import admin from 'firebase-admin';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -28,3 +29,25 @@ export const config = {
 
 const firebaseApp = initializeApp(config);
 export const db = getFirestore(firebaseApp, config.firestoreDatabaseId);
+
+// Initialize firebase-admin if credentials are available
+let adminDb: admin.firestore.Firestore | null = null;
+try {
+  if (process.env.FIREBASE_ADMIN_CREDENTIALS || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
+      const credObj = JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS);
+      admin.initializeApp({ credential: admin.credential.cert(credObj as any) });
+    } else {
+      admin.initializeApp();
+    }
+    adminDb = admin.firestore();
+    console.log('server/config/firebase: firebase-admin initialized');
+  } else {
+    console.log('server/config/firebase: firebase-admin not initialized (no credentials found)');
+  }
+} catch (err) {
+  console.warn('server/config/firebase: failed to initialize firebase-admin', err);
+  adminDb = null;
+}
+
+export { adminDb };

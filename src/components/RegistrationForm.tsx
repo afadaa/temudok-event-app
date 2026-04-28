@@ -250,24 +250,86 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
         return;
       }
 
-      if (data.token) {
-        window.snap.pay(data.token, {
-          onSuccess: function (result: any) {
-            onSuccess({ ...formData, category: catName, orderId: result.order_id });
-          },
-          onPending: function (result: any) {
-            onPending({ orderId: result.order_id });
-          },
-          onError: function () {
-            alert('Pembayaran gagal, silakan coba lagi.');
-          },
-        });
+      // Instead of opening Midtrans Snap popup, show a local bank-transfer modal
+      if (data.token || data.orderId) {
+        // show bank modal with orderId and amount
+        setBankModal({ open: true, orderId: data.orderId || data.order_id, amount: selectedCategory?.price || 0 });
       }
     } catch (error) {
       console.error('Submission error:', error);
       alert('Terjadi kesalahan saat memproses pendaftaran.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Local state: used to show bank-transfer modal
+  const [bankModal, setBankModal] = useState<{ open: boolean; orderId?: string; amount?: number }>({ open: false });
+  const bankFileRef = useRef<HTMLInputElement>(null);
+  const [bankPreview, setBankPreview] = useState<string | null>(null);
+  const [bankSelectedFile, setBankSelectedFile] = useState<File | null>(null);
+
+  // Bank modal handlers
+  const handleConfirmBankTransfer = () => {
+    if (bankModal.orderId) {
+      onPending({ orderId: bankModal.orderId });
+    }
+    setBankModal({ open: false });
+  };
+
+  const handleCloseBankModal = () => setBankModal({ open: false });
+
+  const handleBankFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+      toast.error('Hanya menerima file JPEG/PNG');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 5MB');
+      return;
+    }
+    setBankSelectedFile(file);
+    const url = URL.createObjectURL(file);
+    setBankPreview(url);
+  };
+
+  const handleBankFileUpload = async () => {
+    const file = bankSelectedFile;
+    if (!file || !bankModal.orderId) return;
+    setUploadingFile(true);
+    try {
+      // Convert file to data URL then POST JSON to /api/update-payment-base64
+      const toDataUrl = (f: File) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(f);
+      });
+
+      const dataUrl = await toDataUrl(file);
+      const res = await fetch('/api/update-payment-base64', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: bankModal.orderId, data: dataUrl, filename: file.name })
+      });
+      const result = await res.json();
+      if (res.ok) {
+        toast.success('Bukti pembayaran berhasil diunggah.');
+        onPending({ orderId: bankModal.orderId });
+        setBankModal({ open: false });
+      } else {
+        toast.error(result.error || 'Gagal mengunggah bukti pembayaran');
+      }
+    } catch (err) {
+      console.error('Upload error', err);
+      toast.error('Terjadi kesalahan saat mengunggah bukti pembayaran');
+    } finally {
+      setUploadingFile(false);
+      setBankSelectedFile(null);
+      setBankPreview(null);
+      if (bankFileRef.current) bankFileRef.current.value = '';
     }
   };
 
@@ -281,6 +343,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
   const dynamicCabangOptions = branches.map(b => ({ value: b.id, label: b.name }));
 
   return (
+    <>
     <div className="space-y-6 relative overflow-hidden">
       {/* Progress Indicator */}
       <div className="flex items-center justify-center gap-2 mb-8">
@@ -622,6 +685,77 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
         </div>
       </div>
     </div>
+      {/* Bank Transfer Modal */}
+      {bankModal.open && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={handleCloseBankModal} />
+          <div className="relative z-40 w-full max-w-md bg-white rounded-2xl p-6 shadow-xl">
+            <h3 className="text-lg font-black text-idi-dark mb-3">Instruksi Pembayaran - Transfer Bank</h3>
+            <div className="mb-4">
+              <div className="text-xs text-slate-500">Bankaltimtara Cabang Balikpapan</div>
+              <div className="font-bold text-idi-gold text-lg">No. Rek: 0031588677</div>
+              <div className="text-sm text-slate-700 mt-2">a.n. IDI CABANG BALIKPAPAN</div>
+            </div>
+            <div className="mb-4">
+              <div className="text-xs text-slate-500">Jumlah yang harus dibayar</div>
+              <div className="font-bold text-idi-gold text-lg">{(bankModal.amount || selectedCategory?.price || 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR' })}</div>
+            </div>
+            <div className="mb-4 space-y-3">
+              <label className="block text-xs font-bold mb-2 text-idi-dark">Unggah Bukti Pembayaran (JPEG/PNG)</label>
+              <input
+              type="file"
+              accept="image/jpeg,image/png"
+              ref={bankFileRef}
+              onChange={handleBankFileSelect}
+              className="hidden"
+              />
+              <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => bankFileRef.current?.click()}
+                className="w-full px-4 py-3 bg-white border border-slate-300 text-idi-dark rounded-lg font-bold hover:bg-slate-50"
+              >
+                Pilih Gambar
+              </button>
+              <button
+                type="button"
+                onClick={handleBankFileUpload}
+                disabled={!bankSelectedFile || uploadingFile}
+                className="w-full px-4 py-3 bg-idi-gold text-white rounded-lg font-black disabled:opacity-50"
+              >
+                {uploadingFile ? 'Mengunggah...' : 'Kirim Bukti'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                if (bankModal.orderId) {
+                  onPending({ orderId: bankModal.orderId });
+                  setBankModal({ open: false });
+                }
+                }}
+                className="w-full px-4 py-3 border border-slate-300 text-idi-dark rounded-lg font-bold"
+              >
+                Saya sudah transfer
+              </button>
+              </div>
+              {bankPreview && (
+              <div className="mt-3">
+                <p className="text-xs font-bold text-slate-700 mb-1">Preview:</p>
+                <img
+                src={bankPreview}
+                alt="preview"
+                className="w-40 h-28 object-cover rounded-md border border-slate-300"
+                />
+              </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={handleCloseBankModal} className="px-4 py-3 bg-idi-gold text-white rounded-lg font-black">Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

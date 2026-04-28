@@ -12,6 +12,7 @@ import midtransClient from 'midtrans-client';
 import nodemailer from 'nodemailer';
 import QRCode from 'qrcode';
 import { z } from 'zod';
+import admin from 'firebase-admin';
 
 import apiRoutes from './server/routes/index.ts';
 import { seedDatabase } from './server/services/SeedService.ts';
@@ -47,6 +48,28 @@ const config = {
 // Initialize Firebase App
 const firebaseApp = initializeApp(config);
 const db = getFirestore(firebaseApp, config.firestoreDatabaseId);
+
+// Try to initialize firebase-admin for server-side privileged access if credentials are available
+let adminDb: admin.firestore.Firestore | null = null;
+try {
+  if (process.env.FIREBASE_ADMIN_CREDENTIALS || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
+      // Allow passing the service account JSON as an env var (useful in containers)
+      const credObj = JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS);
+      admin.initializeApp({ credential: admin.credential.cert(credObj as any) });
+    } else {
+      // When GOOGLE_APPLICATION_CREDENTIALS is set to a file path
+      admin.initializeApp();
+    }
+    adminDb = admin.firestore();
+    console.log('Firebase Admin initialized for server-side privileged access');
+  } else {
+    console.log('Firebase Admin not initialized: no service account credentials found. Server will use client SDK and may be subject to Firestore rules.');
+  }
+} catch (err) {
+  console.warn('Failed to initialize firebase-admin:', err);
+  adminDb = null;
+}
 
 // Test connection and Seed Admin
 (async () => {
@@ -142,8 +165,10 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    const orderId = req.body.orderId || req.body.order_id || 'unknown';
+    // Sanitize orderId untuk nama file (hapus karakter tidak valid)
+    const safeOrderId = orderId.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    cb(null, `payment-${safeOrderId}${path.extname(file.originalname)}`);
   }
 });
 
@@ -536,6 +561,18 @@ async function startServer() {
     } catch (error) { res.status(500).json({ error: 'Failed' }); }
   });
 
+
+  function getPaymentPhotoUrl(orderId: string): string {
+    const safeOrderId = orderId.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const uploadsDir = path.join(process.cwd(), 'public/uploads');
+    for (const ext of ['.jpg', '.jpeg', '.png', '.webp']) {
+      const filename = `payment-${safeOrderId}${ext}`;
+      if (fs.existsSync(path.join(uploadsDir, filename))) {
+        return `/uploads/${filename}`;
+      }
+    }
+    return '';
+  }
   // API: Get Payment Status
   app.get('/api/payment-status/:orderId', async (req, res) => {
     try {
@@ -548,8 +585,8 @@ async function startServer() {
       }
 
       const regData = docSnap.data();
+      const photoUrl = getPaymentPhotoUrl(orderId); // ✅ derive dari file, bukan Firestore
 
-      // If it is a free registration or Dummy Mode, we just return the local status
       if (regData.amount === 0 || !process.env.MIDTRANS_SERVER_KEY || process.env.MIDTRANS_SERVER_KEY === 'MY_MIDTRANS_SERVER_KEY') {
         return res.json({ 
           transaction_status: regData.status,
@@ -559,30 +596,25 @@ async function startServer() {
           order_id: orderId,
           custom_field1: regData.fullName,
           custom_field2: regData.category,
-          photoUrl: regData.photoUrl || ''
+          photoUrl, // ✅
         });
       }
 
-      // Try Midtrans for paid registrations
       try {
         const snap = getSnap();
         const statusResponse = await snap.transaction.status(orderId);
-        
-        // Update Firestore with latest status
         await updateDoc(docRef, {
           status: statusResponse.transaction_status,
           updatedAt: new Date().toISOString(),
         });
-
-        // Mix in DB values to ensure Total Bayar and Waktu Transaksi match the user requirement
         return res.json({
           ...statusResponse,
           gross_amount: regData.amount,
           transaction_time: regData.createdAt,
-          photoUrl: regData.photoUrl || ''
+          photoUrl, // ✅
         });
       } catch (midtransError: any) {
-        console.warn('Midtrans status fetch warn (returning local DB status):', midtransError.message);
+        console.warn('Midtrans status fetch warn:', midtransError.message);
         return res.json({ 
           transaction_status: regData.status,
           gross_amount: regData.amount,
@@ -590,7 +622,7 @@ async function startServer() {
           order_id: orderId,
           custom_field1: regData.fullName,
           custom_field2: regData.category,
-          photoUrl: regData.photoUrl || ''
+          photoUrl, // ✅
         });
       }
     } catch (error) {
@@ -624,6 +656,127 @@ async function startServer() {
       res.status(500).json({ error: 'Gagal mengunggah foto' });
     }
   });
+
+  // API: Upload payment photo (multipart) and update registration.paymentPhoto
+  // API: Upload payment photo (multipart) and update registration.paymentPhoto
+    app.post('/api/update-payment', upload.single('paymentPhoto'), async (req, res) => {
+      try {
+        const orderId = (req.body.orderId || req.body.order_id || req.body.orderID) as string;
+        if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+
+        const file = req.file;
+        if (!file) return res.status(400).json({ error: 'No file uploaded (expected field "paymentPhoto")' });
+
+        const mimetype = (file.mimetype || '').toLowerCase();
+        if (!mimetype.includes('image')) {
+          return res.status(400).json({ error: 'File harus berupa gambar (jpeg/png)' });
+        }
+
+  const fileUrl = `/uploads/${file.filename}`;
+  const publicBase = `${req.protocol}://${req.get('host')}`;
+  const fullUrl = `${publicBase}${fileUrl}`;
+
+        // Gunakan Admin SDK jika tersedia (bypass Firestore rules)
+        if (adminDb) {
+          const adminDocRef = adminDb.collection('registrations').doc(orderId);
+          const adminSnap = await adminDocRef.get();
+          if (!adminSnap.exists) {
+            return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+          }
+          await adminDocRef.update({
+            paymentPhoto: fileUrl,
+            updatedAt: new Date().toISOString()
+          });
+        } else {
+          // Fallback: update the allowed `photoUrl` field (firestore.rules permits this) so clients can see the image
+          const docRef = doc(db, 'registrations', orderId);
+          const docSnap = await getDoc(docRef);
+          if (!docSnap.exists()) {
+            return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+          }
+          try {
+            await updateDoc(docRef, {
+              photoUrl: fullUrl,
+              updatedAt: new Date().toISOString()
+            });
+          } catch (updateErr: any) {
+            console.error('Firestore update error (client SDK) for photoUrl:', updateErr);
+            // Remove the uploaded file to avoid orphaned files
+            try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', file.filename)); } catch (e) {}
+            if (updateErr?.code === 7 || updateErr?.message?.includes('PERMISSION_DENIED')) {
+              return res.status(403).json({ error: 'Permission denied when updating Firestore. Initialize firebase-admin with service account credentials or adjust Firestore rules.' });
+            }
+            throw updateErr;
+          }
+        }
+
+        res.json({ success: true, fileUrl });
+      } catch (error: any) {
+        console.error('Update Payment Photo Error:', error?.message || error);
+        res.status(500).json({ error: 'Gagal mengunggah bukti pembayaran', detail: error?.message });
+      }
+    });
+
+    // API: Upload payment photo as base64 (JSON) - useful when client sends dataURL
+    app.post('/api/update-payment-base64', express.json({ limit: '8mb' }), async (req, res) => {
+      try {
+        const { orderId, data, filename } = req.body as { orderId?: string; data?: string; filename?: string };
+        if (!orderId || !data) return res.status(400).json({ error: 'orderId and data (base64) are required' });
+
+        const safeOrderId = String(orderId).replace(/[^a-zA-Z0-9_\-]/g, '_');
+
+        // strip data URI prefix if present
+        const matches = String(data).match(/^data:(image\/[a-zA-Z]+);base64,(.+)$/);
+        let mimeType = 'image/jpeg';
+        let base64 = String(data);
+        if (matches) {
+          mimeType = matches[1];
+          base64 = matches[2];
+        }
+
+        const allowed: Record<string, string> = { 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+        if (!allowed[mimeType]) return res.status(400).json({ error: 'Unsupported image type' });
+
+        const buffer = Buffer.from(base64, 'base64');
+        const maxBytes = 3 * 1024 * 1024; // 3 MB decoded limit
+        if (buffer.length > maxBytes) return res.status(400).json({ error: 'Image too large' });
+
+        const ext = allowed[mimeType];
+        const finalName = filename ? String(filename).replace(/[^a-zA-Z0-9_.\-]/g, '_') : `payment-${safeOrderId}${ext}`;
+        const outDir = path.join(process.cwd(), 'public/uploads');
+        if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+        const outPath = path.join(outDir, finalName);
+        fs.writeFileSync(outPath, buffer);
+
+        const fileUrl = `/uploads/${finalName}`;
+        const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+
+        // Try to persist to Firestore if adminDb available (privileged). If not, skip DB write.
+        try {
+          if (adminDb) {
+            const regRef = adminDb.collection('registrations').doc(orderId);
+            const regSnap = await regRef.get();
+            if (!regSnap.exists) {
+              // remove file to avoid orphan
+              try { fs.unlinkSync(outPath); } catch (e) {}
+              return res.status(404).json({ error: 'Registration not found' });
+            }
+            await regRef.update({ paymentPhoto: fileUrl, paymentPhotoUrl: fullUrl, updatedAt: new Date().toISOString() });
+          }
+        } catch (dbErr) {
+          console.error('Failed to persist base64 payment photo to Firestore:', dbErr);
+          // cleanup file on DB failure
+          try { fs.unlinkSync(outPath); } catch (e) {}
+          return res.status(500).json({ error: 'Failed to save payment photo to database', detail: String(dbErr) });
+        }
+
+        return res.json({ success: true, fileUrl, fileUrlFull: fullUrl });
+      } catch (err: any) {
+        console.error('Base64 upload err:', err);
+        return res.status(500).json({ error: 'Failed to save base64 image', detail: err?.message || String(err) });
+      }
+    });
 
   app.post('/api/admin/check-in', requireAdmin, async (req, res) => {
     try {
@@ -800,6 +953,18 @@ async function startServer() {
   // API Routes
   app.use('/api', apiRoutes);
 
+  // Diagnostics endpoint to verify Admin SDK state without exposing secrets
+  app.get('/api/diagnostics', (req, res) => {
+    try {
+      const adminInitialized = !!adminDb;
+      const hasAdminEnv = !!(process.env.FIREBASE_ADMIN_CREDENTIALS || process.env.GOOGLE_APPLICATION_CREDENTIALS);
+      res.json({ adminInitialized, hasAdminEnv });
+    } catch (err) {
+      console.error('Diagnostics error:', err);
+      res.status(500).json({ error: 'Diagnostics failed' });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -815,9 +980,44 @@ async function startServer() {
     });
   }
 
+  // Global Express error handler — placed here so it has access to `app`
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    try {
+      console.error('Global error handler caught:', err && err.message ? err.message : err);
+      // Multer-specific errors
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large', code: err.code });
+        }
+        return res.status(400).json({ error: err.message || 'Multer error', code: err.code });
+      }
+
+      // If the error has an HTTP status, use it
+      const status = err?.status || err?.statusCode || 500;
+      const message = err?.message || 'Internal Server Error';
+      res.status(status).json({ error: message, detail: err?.detail || null });
+    } catch (handlerErr) {
+      console.error('Error in error handler:', handlerErr);
+      res.status(500).json({ error: 'Internal Server Error in error handler' });
+    }
+  });
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 
 startServer();
+
+// Global error handler (for multer and other errors) - ensure JSON responses
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+});
+
+// Express error handler for multer and other errors (returns JSON)
+// Note: must be registered after all routes (which it is)
+process.nextTick(() => {}); // keep stack position stable
+
+// Exported middleware cannot be directly registered outside startServer(), but we will
+// add a simple global handler by patching app inside startServer in future if needed.
+

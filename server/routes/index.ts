@@ -35,6 +35,7 @@ router.delete('/admin/categories/:id', requireAdmin, PublicController.deleteCate
 // Admin Routes (Data & Operations)
 router.get('/admin/registrations', requireAdmin, AdminController.getRegistrations);
 router.post('/admin/check-in', requireAdmin, AdminController.checkIn);
+router.post('/admin/mark-paid', requireAdmin, AdminController.markAsPaid);
 router.get('/admin/guestbook', requireAdmin, AdminController.getGuestbook);
 
 export default router;

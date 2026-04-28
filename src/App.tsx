@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Stethoscope, Calendar, MapPin, Users, CheckCircle2, ChevronRight, X, Mail, Phone, CreditCard, Search, ChevronLeft, RefreshCw } from 'lucide-react';
+import { Stethoscope, Calendar, MapPin, Users, CheckCircle2, ChevronRight, X, Mail, Phone, CreditCard, Search, ChevronLeft, RefreshCw, Menu, X as XIcon } from 'lucide-react';
 import { RegistrationForm } from './components/RegistrationForm';
 import { CheckStatus } from './components/CheckStatus';
 import { TicketDownload } from './components/TicketDownload';
@@ -72,6 +72,7 @@ function MainApp() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showAgenda, setShowAgenda] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/events')
@@ -242,6 +243,12 @@ function MainApp() {
           <button onClick={() => setShowAgenda(true)} className="hover:text-idi-accent transition-colors uppercase">Agenda</button>
           <a href="https://maps.app.goo.gl/3JXD2LiUgcdiua7K6" target="_blank" rel="noreferrer" className="hover:text-idi-accent transition-colors uppercase">Lokasi</a>
         </div>
+        {/* Mobile Hamburger */}
+        <div className="lg:hidden">
+          <button onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" className="p-2 rounded-md bg-idi-dark/60">
+            <Menu size={20} />
+          </button>
+        </div>
         <div className="flex gap-4">
           <button 
             onClick={() => openForm('registration')}
@@ -251,6 +258,36 @@ function MainApp() {
           </button>
         </div>
       </nav>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-60 bg-black/50 lg:hidden">
+            <div className="absolute top-0 right-0 w-full max-w-sm h-full bg-idi-dark p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <img src="/IDI.png" alt="IDI" className="w-10 h-10" />
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-idi-gold">Ikatan Dokter Indonesia</span>
+                    <span className="text-sm font-black text-white">Wilayah Kaltim</span>
+                  </div>
+                </div>
+                <button onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" className="p-2 rounded-md bg-slate-700 text-white">
+                  <XIcon size={18} />
+                </button>
+              </div>
+
+              <nav className="flex flex-col gap-4 text-sm font-black uppercase tracking-wider">
+                <a href="#" onClick={() => setMobileMenuOpen(false)} className="text-idi-accent">Beranda</a>
+                <button onClick={() => { setMobileMenuOpen(false); openForm('status'); }} className="text-left">Cek Status</button>
+                <button onClick={() => { setMobileMenuOpen(false); setShowAgenda(true); }} className="text-left">Agenda</button>
+                <a href="https://maps.app.goo.gl/3JXD2LiUgcdiua7K6" target="_blank" rel="noreferrer" onClick={() => setMobileMenuOpen(false)} className="text-left">Lokasi</a>
+                <button onClick={() => { setMobileMenuOpen(false); openForm('registration'); }} className="mt-4 bg-idi-gold text-idi-dark px-4 py-3 rounded-full font-black">Pendaftaran</button>
+              </nav>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="flex-1 w-full flex flex-col">
         {/* Curved Hero Wrapper */}

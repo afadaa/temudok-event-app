@@ -17,6 +17,10 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
   const [error, setError] = useState<string | null>(null);
   const [showTicket, setShowTicket] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Auto-fetch if initialOrderId is present
   React.useEffect(() => {
@@ -216,6 +220,65 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
                       <Download size={16} />
                       Lihat & Unduh Tiket
                     </button>
+                  </div>
+                )}
+                {statusData.transaction_status === 'pending' && (
+                  <div className="pt-4 space-y-3">
+                    <div className="p-3 bg-amber-50 rounded-lg text-amber-700 text-[11px] font-medium leading-relaxed">
+                      Pesanan Anda berstatus pending. Jika sudah melakukan transfer, unggah bukti pembayaran di sini.
+                    </div>
+                    <input type="file" accept="image/jpeg,image/png" className="hidden" ref={fileRef} onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (!orderId) return setError('Order ID tidak ditemukan');
+                      if (!['image/jpeg','image/png','image/jpg'].includes(file.type)) return setError('Hanya menerima file JPEG/PNG');
+                      if (file.size > 5 * 1024 * 1024) return setError('Ukuran file maksimal 5MB');
+                      setSelectedFile(file);
+                      const url = URL.createObjectURL(file);
+                      setPreviewUrl(url);
+                      setError(null);
+                    }} />
+                    <div className="flex gap-3 items-center">
+                      <button onClick={() => fileRef.current?.click()} className="px-4 py-3 bg-white border rounded-lg font-bold">Pilih Gambar</button>
+                      <button onClick={async () => {
+                        if (!selectedFile) return setError('Belum memilih file');
+                        setUploading(true);
+                        try {
+                          // Convert to data URL then POST JSON to /api/update-payment-base64
+                          const toDataUrl = (f: File) => new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result as string);
+                            reader.onerror = (e) => reject(e);
+                            reader.readAsDataURL(f);
+                          });
+                          const dataUrl = await toDataUrl(selectedFile);
+                          const res = await fetch('/api/update-payment-base64', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: orderId.trim(), data: dataUrl, filename: selectedFile.name }) });
+                          const json = await res.json();
+                          if (res.ok) {
+                            setError(null);
+                            setSelectedFile(null);
+                            setPreviewUrl(null);
+                            // refresh status
+                            await fetchStatus({ preventDefault: () => {} } as React.FormEvent);
+                          } else {
+                            setError(json.error || 'Gagal mengunggah bukti pembayaran');
+                          }
+                        } catch (err: any) {
+                          setError(err.message || 'Terjadi kesalahan saat mengunggah');
+                        } finally {
+                          setUploading(false);
+                          if (fileRef.current) fileRef.current.value = '';
+                        }
+                      }} className="flex-1 px-4 py-3 bg-idi-gold text-white rounded-lg font-black">{uploading ? 'Mengunggah...' : 'Kirim Bukti'}</button>
+                      <button onClick={() => { onBack(); }} className="px-4 py-3 bg-idi-gold text-white rounded-lg font-black">Tutup</button>
+                    </div>
+                    {previewUrl && (
+                      <div className="mt-3">
+                        <p className="text-xs font-bold text-slate-500 mb-1">Preview:</p>
+                        <img src={previewUrl} alt="preview" className="w-40 h-28 object-cover rounded-md border" />
+                      </div>
+                    )}
+                    {uploading && <div className="text-sm text-slate-500">Mengunggah...</div>}
                   </div>
                 )}
               </div>

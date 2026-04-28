@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../config/firebase.ts';
+import { db, adminDb } from '../config/firebase.ts';
 
 export class AdminController {
   static async getRegistrations(req: Request, res: Response) {
@@ -43,6 +43,31 @@ export class AdminController {
     } catch (error) {
       console.error('Check-in Error:', error);
       res.status(500).json({ error: 'Gagal melakukan check-in' });
+    }
+  }
+
+  static async markAsPaid(req: Request, res: Response) {
+    try {
+      const { orderId } = req.body;
+      if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+
+      // Use adminDb when available for privileged update
+      if (adminDb) {
+        const ref = adminDb.collection('registrations').doc(orderId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'Registration not found' });
+        await ref.update({ status: 'settlement', paymentVerified: true, updatedAt: new Date().toISOString() });
+        return res.json({ success: true });
+      }
+
+      const docRef = doc(db, 'registrations', orderId);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return res.status(404).json({ error: 'Registration not found' });
+      await updateDoc(docRef, { status: 'settlement', paymentVerified: true, updatedAt: new Date().toISOString() });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('markAsPaid Error:', error);
+      res.status(500).json({ error: 'Failed to update registration status' });
     }
   }
 
