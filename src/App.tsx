@@ -219,40 +219,45 @@ function MainApp() {
         </div>
       </div>
 
-      <nav className="h-24 border-b border-idi-gold/20 bg-idi-dark/80 backdrop-blur-md px-6 md:px-12 flex items-center justify-between shrink-0 sticky top-0 z-50">
-        <div className="flex items-center gap-4">
+      <nav className="h-20 md:h-24 border-b border-idi-gold/20 bg-idi-dark/80 backdrop-blur-md px-4 md:px-12 flex items-center justify-between shrink-0 sticky top-0 z-50">
+        <div className="flex items-center gap-3 flex-none">
             <div className="relative group">
-            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-500 overflow-hidden">
+            <div className="w-12 h-12 md:w-14 md:h-14 bg-white rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-500 overflow-hidden">
               <img
               src="/IDI.png"
               alt="IDI Logo"
-              className="w-10 h-10 object-contain"
+              className="w-8 h-8 md:w-10 md:h-10 object-contain"
               draggable={false}
               />
             </div>
             <div className="absolute -inset-1 border border-idi-gold/30 rounded-full animate-pulse"></div>
             </div>
-          <div className="flex flex-col">
+          <div className="hidden md:flex flex-col">
             <span className="font-serif-sc text-sm tracking-widest text-idi-gold leading-tight">Ikatan Dokter Indonesia</span>
             <span className="font-serif text-lg font-bold text-white tracking-tight leading-tight">Wilayah Kalimantan Timur</span>
           </div>
+          {/* mobile hamburger on the left (next to logo) */}
+          <div className="md:hidden ml-2">
+            <button onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" className="p-2 rounded-md bg-idi-dark/60">
+              <Menu size={20} />
+            </button>
+          </div>
         </div>
-        <div className="hidden lg:flex gap-10 text-[10px] font-black text-idi-cream/60 uppercase tracking-[0.3em]">
-          <a href="#" className="text-idi-accent border-b border-idi-accent pb-1 uppercase">Beranda</a>
-          <button onClick={() => openForm('status')} className="hover:text-idi-accent transition-colors uppercase">Cek Status</button>
-          <button onClick={() => setShowAgenda(true)} className="hover:text-idi-accent transition-colors uppercase">Agenda</button>
-          <a href="https://maps.app.goo.gl/3JXD2LiUgcdiua7K6" target="_blank" rel="noreferrer" className="hover:text-idi-accent transition-colors uppercase">Lokasi</a>
+        <div className="flex-1 flex items-center justify-center">
+          {/* center area: desktop nav (md+) and hamburger (mobile) centered */}
+          <div className="hidden md:flex gap-8 text-[10px] font-black text-idi-cream/60 uppercase tracking-[0.25em]">
+            <a href="#" className="text-idi-accent border-b border-idi-accent pb-1 uppercase">Beranda</a>
+            <button onClick={() => openForm('status')} className="hover:text-idi-accent transition-colors uppercase">Cek Status</button>
+            <button onClick={() => setShowAgenda(true)} className="hover:text-idi-accent transition-colors uppercase">Agenda</button>
+            <a href="https://maps.app.goo.gl/3JXD2LiUgcdiua7K6" target="_blank" rel="noreferrer" className="hover:text-idi-accent transition-colors uppercase">Lokasi</a>
+          </div>
+
+          {/* center area reserved for nav on md+ */}
         </div>
-        {/* Mobile Hamburger */}
-        <div className="lg:hidden">
-          <button onClick={() => setMobileMenuOpen(true)} aria-label="Open menu" className="p-2 rounded-md bg-idi-dark/60">
-            <Menu size={20} />
-          </button>
-        </div>
-        <div className="flex gap-4">
+  <div className="flex gap-4 items-center flex-none">
           <button 
             onClick={() => openForm('registration')}
-            className="bg-idi-gold hover:bg-idi-accent text-idi-dark px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-idi-gold/20"
+            className="bg-idi-gold hover:bg-idi-accent text-idi-dark px-4 md:px-8 py-2 md:py-3 rounded-full text-[11px] md:text-[10px] font-black uppercase tracking-[0.15em] md:tracking-[0.2em] transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-idi-gold/20"
           >
             Pendaftaran
           </button>
@@ -262,8 +267,8 @@ function MainApp() {
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-60 bg-black/50 lg:hidden">
-            <div className="absolute top-0 right-0 w-full max-w-sm h-full bg-idi-dark p-6 shadow-2xl">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-60 bg-black/50 md:hidden">
+            <div className="absolute top-0 right-0 w-full max-w-xs h-full bg-idi-dark p-4 shadow-2xl">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <img src="/IDI.png" alt="IDI" className="w-10 h-10" />

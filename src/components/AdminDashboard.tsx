@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit, FileDown, Camera, BookOpen, LayoutGrid, X, CheckSquare, Square } from 'lucide-react';
+import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit, FileDown, Camera, BookOpen, LayoutGrid, X, CheckSquare, Square, Menu } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import Flatpickr from 'react-flatpickr';
@@ -38,6 +39,7 @@ interface Event {
 }
 
 export function AdminDashboard({ onBack }: { onBack: () => void }) {
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [registrants, setRegistrants] = useState<Registrant[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -443,8 +445,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="flex bg-slate-50 min-h-screen">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 z-10 shrink-0">
+  {/* Sidebar (desktop) */}
+  <aside className="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col fixed inset-y-0 z-10 shrink-0">
         <div className="p-6 border-b border-slate-100 flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-tr from-slate-900 to-slate-800 text-white rounded-xl flex items-center justify-center rotate-3">
             <Users size={20} className="-rotate-3" />
@@ -528,8 +530,54 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         </div>
       </aside>
 
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-slate-200 flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setMobileSidebarOpen(true)} className="p-2 rounded-md bg-slate-50">
+            <Menu size={18} />
+          </button>
+          <div className="text-sm font-black">Admin Panel</div>
+        </div>
+        <div>
+          <button onClick={onBack} className="text-slate-500 text-xs uppercase font-black">Keluar</button>
+        </div>
+      </div>
+
+      {/* Mobile Sidebar Drawer */}
+      <AnimatePresence>
+        {mobileSidebarOpen && (
+          <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} className="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 p-4 md:hidden">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-tr from-slate-900 to-slate-800 text-white rounded-xl flex items-center justify-center rotate-3">
+                  <Users size={20} className="-rotate-3" />
+                </div>
+                <div>
+                  <div className="font-black text-xs uppercase tracking-widest text-slate-900">Muswil Admin</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">IDI Kaltim</div>
+                </div>
+              </div>
+              <button onClick={() => setMobileSidebarOpen(false)} className="p-2 rounded-md bg-slate-50"><X size={18} /></button>
+            </div>
+            <nav className="space-y-2">
+              <button onClick={() => { setActiveTab('registrations'); setMobileSidebarOpen(false); }} className="w-full text-left px-4 py-3 rounded-xl text-sm font-black uppercase">Data Registrations</button>
+              <button onClick={() => { setActiveTab('events'); setMobileSidebarOpen(false); }} className="w-full text-left px-4 py-3 rounded-xl text-sm font-black uppercase">Event Manager</button>
+              <button onClick={() => { setActiveTab('branches'); setMobileSidebarOpen(false); }} className="w-full text-left px-4 py-3 rounded-xl text-sm font-black uppercase">Cabang IDI</button>
+              <button onClick={() => { setActiveTab('categories'); setMobileSidebarOpen(false); }} className="w-full text-left px-4 py-3 rounded-xl text-sm font-black uppercase">Kategori</button>
+              <div className="pt-4 border-t mt-4">
+                <button onClick={() => { setActiveTab('scanner'); setMobileSidebarOpen(false); }} className="w-full text-left px-4 py-3 rounded-xl text-sm font-black uppercase">Scan Kehadiran</button>
+                <button onClick={() => { setActiveTab('guestbook'); setMobileSidebarOpen(false); }} className="w-full text-left px-4 py-3 rounded-xl text-sm font-black uppercase">Buku Tamu</button>
+                <div className="pt-4">
+                  <button onClick={() => { window.open('/kiosk', '_blank'); setMobileSidebarOpen(false); }} className="w-full bg-indigo-600 text-white px-4 py-3 rounded-2xl text-xs font-black uppercase">Open Kiosk Mode</button>
+                </div>
+              </div>
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Content */}
-      <main className="ml-64 flex-1 p-8 h-screen overflow-y-auto">
+      <main className="md:ml-64 flex-1 p-4 md:p-8 pt-20 md:pt-8 h-screen overflow-y-auto">
         <div className="max-w-6xl mx-auto space-y-8">
           
           {activeTab === 'registrations' && (
