@@ -6,8 +6,15 @@ import { sendTicketEmail, sendBroadcastEmail } from '../services/MailService.ts'
 export class AdminController {
   static async getRegistrations(req: Request, res: Response) {
     try {
-      const snapshot = await getDocs(query(collection(db, 'registrations'), orderBy('createdAt', 'desc')));
-      const docs = snapshot.docs.map(doc => ({
+      // @ts-ignore - Using experimental/custom pipeline query
+      const q = (db as any).pipeline()
+        .collection("registrations")
+        // No where clause here to get all, but we use the query structure requested
+        .select((global as any).field("email"), (global as any).field("name"), (global as any).field("eventId"), (global as any).field("status"), (global as any).field("createdAt"))
+        .limit(1000);
+
+      const snapshot = await q.get();
+      const docs = snapshot.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data()
       }));
@@ -148,6 +155,47 @@ export class AdminController {
     } catch (error) {
       console.error('Guestbook Error:', error);
       res.status(500).json({ error: 'Gagal mengambil data buku tamu' });
+    }
+  }
+
+  static async resendEmail(req: Request, res: Response) {
+    try {
+      const { orderId } = req.body;
+      if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+
+      let data;
+      if (adminDb) {
+        const ref = adminDb.collection('registrations').doc(orderId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'Registration not found' });
+        data = snap.data();
+      } else {
+        const docRef = doc(db, 'registrations', orderId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) return res.status(404).json({ error: 'Registration not found' });
+        data = docSnap.data();
+      }
+
+      if (data.status !== 'settlement' && data.status !== 'capture') {
+        return res.status(400).json({ error: 'Pembayaran peserta belum lunas' });
+      }
+
+      await sendTicketEmail({
+        order_id: orderId,
+        customer_details: {
+          first_name: data.fullName,
+          email: data.email,
+          phone: data.phone
+        },
+        custom_field1: data.fullName,
+        custom_field2: data.category,
+        custom_field3: data.eventTitle
+      });
+
+      res.json({ success: true, message: 'Email berhasil dikirim ulang' });
+    } catch (error) {
+      console.error('resendEmail Error:', error);
+      res.status(500).json({ error: 'Gagal mengirim ulang email' });
     }
   }
 }

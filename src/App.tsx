@@ -515,6 +515,52 @@ function MainApp() {
                   </div>
                 </div>
 
+                {statusResultData.transaction_status === 'pending' && (
+                  <div className="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 text-left">
+                    <h4 className="text-xs font-black text-idi-dark mb-4 uppercase tracking-widest">Instruksi Pembayaran - Transfer Bank</h4>
+                    
+                    <div className="mb-4">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Bank Pengolah</div>
+                      <div className="text-sm font-bold text-slate-700">Bankaltimtara Cabang Balikpapan</div>
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nomor Rekening</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-black text-idi-gold text-lg">0031588677</div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText('0031588677');
+                            toast.success('Nomor rekening disalin');
+                          }}
+                          className="px-3 py-1 bg-idi-dark text-white border border-transparent rounded-lg text-[9px] font-black uppercase hover:bg-idi-bronze transition-colors"
+                        >
+                          Salin
+                        </button>
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-500 mt-1">a.n. IDI CABANG BALIKPAPAN</div>
+                    </div>
+
+                    <div className="p-4 bg-white rounded-xl border border-slate-100">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Simpan Order ID</div>
+                      <div className="flex items-center gap-3">
+                        <p className="text-xs font-mono font-bold m-0 break-words flex-1 text-idi-dark">{statusResultData.order_id}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(statusResultData.order_id);
+                            toast.success('Order ID disalin');
+                          }}
+                          className="px-3 py-1 bg-idi-dark text-white border border-transparent rounded-lg text-[9px] font-black uppercase hover:bg-idi-bronze transition-colors"
+                        >
+                          Salin
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <button 
                   onClick={() => setShowStatusResult(false)}
                   className="w-full bg-idi-dark text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.4em] hover:bg-idi-bronze transition-all"

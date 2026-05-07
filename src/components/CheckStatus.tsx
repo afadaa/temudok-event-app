@@ -34,7 +34,8 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
 
   const fetchStatus = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orderId.trim()) return;
+    const input = orderId.trim();
+    if (!input) return;
 
     setLoading(true);
     setError(null);
@@ -42,7 +43,28 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
     setShowTicket(false);
 
     try {
-      const response = await fetch(`/api/payment-status/${orderId.trim()}`);
+      // Detect if input looks like an email address
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
+
+      let resolvedOrderId = input;
+
+      if (isEmail) {
+        // Look up registrations by email to get orderId
+        const emailRes = await fetch(`/api/payment-status/by-email?email=${encodeURIComponent(input)}`);
+        if (!emailRes.ok) throw new Error('Gagal mencari data berdasarkan email.');
+        const emailData = await emailRes.json();
+        if (!emailData.results || emailData.results.length === 0) {
+          throw new Error('Tidak ada pendaftaran ditemukan untuk email ini.');
+        }
+        // Pick the most recent registration
+        const sorted = [...emailData.results].sort((a, b) =>
+          new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        );
+        resolvedOrderId = sorted[0].orderId;
+        if (!resolvedOrderId) throw new Error('Order ID tidak ditemukan untuk email ini.');
+      }
+
+      const response = await fetch(`/api/payment-status/${resolvedOrderId}`);
       if (!response.ok) {
         throw new Error('Order ID tidak ditemukan atau terjadi kesalahan.');
       }
@@ -109,12 +131,12 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
 
       <form onSubmit={fetchStatus} className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Order ID / ID Pesanan</label>
+          <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Order ID / Email Peserta</label>
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
               <input 
                 type="text"
-                placeholder="Contoh: MUSWIL-IDI-171..."
+                placeholder="Order ID atau email pendaftar..."
                 className="w-full pl-11 pr-4 py-4 bg-idi-cream/5 border border-slate-200 rounded-xl focus:border-idi-gold focus:ring-1 focus:ring-idi-gold outline-none transition-all font-medium text-sm text-idi-dark"
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}

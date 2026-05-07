@@ -574,6 +574,32 @@ async function startServer() {
     return '';
   }
   // API: Get Payment Status
+  app.get('/api/payment-status/by-email', async (req, res) => {
+    try {
+      const email = ((req.query.email as string) || '').trim();
+      if (!email) return res.status(400).json({ error: 'Email query parameter is required' });
+
+      const q = query(collection(db, 'registrations'), where('email', '==', email));
+      const snap = await getDocs(q);
+      const items = snap.docs.map(d => {
+        const data: any = d.data();
+        return {
+          orderId: d.id || data.orderId || null,
+          status: data.status,
+          amount: data.amount,
+          eventTitle: data.eventTitle,
+          createdAt: data.createdAt,
+          fullName: data.fullName,
+          category: data.category,
+        };
+      });
+      return res.status(200).json({ results: items });
+    } catch (error) {
+      console.error('getPaymentStatusByEmail error:', error);
+      return res.status(500).json({ error: 'Gagal mencari data berdasarkan email' });
+    }
+  });
+
   app.get('/api/payment-status/:orderId', async (req, res) => {
     try {
       const orderId = req.params.orderId;
