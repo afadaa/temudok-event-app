@@ -486,23 +486,24 @@ function MainApp() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-8 relative"
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl relative overflow-hidden"
             >
               <button 
                 onClick={() => setShowStatusResult(false)}
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 transition-colors"
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 transition-colors z-10 bg-white/80 rounded-full"
               >
                 <X size={20} />
               </button>
 
-              <div className="text-center">
-                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  {statusResultData.transaction_status === 'pending' ? (
-                    <div className="w-8 h-8 rounded-full border-4 border-amber-500 border-t-transparent animate-spin"></div>
-                  ) : (
-                    <X className="text-red-500" size={32} />
-                  )}
-                </div>
+              <div className="max-h-[85vh] overflow-y-auto p-8">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    {statusResultData.transaction_status === 'pending' ? (
+                      <div className="w-8 h-8 rounded-full border-4 border-amber-500 border-t-transparent animate-spin"></div>
+                    ) : (
+                      <X className="text-red-500" size={32} />
+                    )}
+                  </div>
 
                 <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 mb-2">Status Pembayaran</h3>
                 <p className="text-sm text-slate-400 mb-8 uppercase font-bold tracking-widest">{statusResultData.transaction_status}</p>
@@ -686,6 +687,7 @@ function MainApp() {
                 >
                   Tutup
                 </button>
+              </div>
               </div>
             </motion.div>
           </motion.div>
