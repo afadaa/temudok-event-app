@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Stethoscope, Calendar, MapPin, Users, CheckCircle2, ChevronRight, X, Mail, Phone, CreditCard, Search, ChevronLeft, RefreshCw, Menu, X as XIcon } from 'lucide-react';
+import { Stethoscope, Calendar, MapPin, Users, CheckCircle2, ChevronRight, X, Mail, Phone, CreditCard, Search, ChevronLeft, RefreshCw, Menu, X as XIcon, Upload, ImageIcon } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
 import { RegistrationForm } from './components/RegistrationForm';
 import { CheckStatus } from './components/CheckStatus';
 import { TicketDownload } from './components/TicketDownload';
 import { AdminDashboard } from './components/AdminDashboard';
 import { KioskCheckin } from './components/KioskCheckin';
 import QRCode from 'qrcode';
-import { Toaster, toast } from 'sonner';
 
 interface Event {
   id: string;
@@ -66,6 +67,12 @@ function MainApp() {
 
   const [showStatusResult, setShowStatusResult] = useState(false);
   const [statusResultData, setStatusResultData] = useState<any>(null);
+
+  // Upload bukti transfer state (untuk modal cek status)
+  const statusFileRef = React.useRef<HTMLInputElement>(null);
+  const [statusSelectedFile, setStatusSelectedFile] = useState<File | null>(null);
+  const [statusPreviewUrl, setStatusPreviewUrl] = useState<string | null>(null);
+  const [statusUploading, setStatusUploading] = useState(false);
 
   const [events, setEvents] = useState<Event[]>([]);
   const [currentEventIdx, setCurrentEventIdx] = useState(0);
@@ -561,8 +568,120 @@ function MainApp() {
                   </div>
                 )}
 
+                {/* Upload Bukti Transfer - hanya tampil jika status pending */}
+                {statusResultData.transaction_status === 'pending' && (
+                  <div className="mb-6 space-y-3">
+                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-idi-gold mb-3">Upload Bukti Transfer</div>
+                    
+                    {/* Preview image */}
+                    {statusPreviewUrl && (
+                      <div className="relative mb-3">
+                        <img
+                          src={statusPreviewUrl}
+                          alt="preview bukti transfer"
+                          className="w-full h-36 object-cover rounded-xl border border-slate-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setStatusSelectedFile(null); setStatusPreviewUrl(null); if (statusFileRef.current) statusFileRef.current.value = ''; }}
+                          className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    )}
+
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      ref={statusFileRef}
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (!['image/jpeg','image/png','image/jpg'].includes(file.type)) {
+                          toast.error('Hanya menerima file JPEG/PNG');
+                          return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error('Ukuran file maksimal 5MB');
+                          return;
+                        }
+                        setStatusSelectedFile(file);
+                        setStatusPreviewUrl(URL.createObjectURL(file));
+                      }}
+                    />
+
+                    {!statusPreviewUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => statusFileRef.current?.click()}
+                        className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-6 flex flex-col items-center gap-2 text-slate-400 hover:border-idi-gold hover:text-idi-gold transition-all"
+                      >
+                        <Upload size={24} />
+                        <span className="text-[11px] font-black uppercase tracking-wider">Pilih Foto Bukti Transfer</span>
+                        <span className="text-[10px]">JPEG/PNG, maks 5MB</span>
+                      </button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => statusFileRef.current?.click()}
+                          className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2"
+                        >
+                          <ImageIcon size={14} />
+                          Ganti Foto
+                        </button>
+                        <button
+                          type="button"
+                          disabled={statusUploading}
+                          onClick={async () => {
+                            if (!statusSelectedFile || !statusResultData?.order_id) return;
+                            setStatusUploading(true);
+                            try {
+                              const toDataUrl = (f: File) => new Promise<string>((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = () => resolve(reader.result as string);
+                                reader.onerror = (e) => reject(e);
+                                reader.readAsDataURL(f);
+                              });
+                              const dataUrl = await toDataUrl(statusSelectedFile);
+                              const res = await fetch('/api/update-payment-base64', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ orderId: statusResultData.order_id, data: dataUrl, filename: statusSelectedFile.name })
+                              });
+                              const json = await res.json();
+                              if (res.ok) {
+                                toast.success('Bukti pembayaran berhasil dikirim! Tim kami akan memverifikasi segera.');
+                                setStatusSelectedFile(null);
+                                setStatusPreviewUrl(null);
+                                if (statusFileRef.current) statusFileRef.current.value = '';
+                                setShowStatusResult(false);
+                              } else {
+                                toast.error(json.error || 'Gagal mengunggah bukti pembayaran');
+                              }
+                            } catch (err: any) {
+                              toast.error(err.message || 'Terjadi kesalahan saat mengunggah');
+                            } finally {
+                              setStatusUploading(false);
+                            }
+                          }}
+                          className="flex-1 py-3 bg-idi-gold text-white rounded-xl font-black text-xs uppercase tracking-wider hover:bg-idi-accent disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+                        >
+                          {statusUploading ? (
+                            <><RefreshCw size={14} className="animate-spin" /> Mengunggah...</>
+                          ) : (
+                            <><Upload size={14} /> Kirim Bukti</>  
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button 
-                  onClick={() => setShowStatusResult(false)}
+                  onClick={() => { setShowStatusResult(false); setStatusSelectedFile(null); setStatusPreviewUrl(null); }}
                   className="w-full bg-idi-dark text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.4em] hover:bg-idi-bronze transition-all"
                 >
                   Tutup
