@@ -13,9 +13,10 @@ interface TicketDownloadProps {
     eventTitle?: string;
   };
   qrCodeUrl: string;
+  allowPhotoUpload?: boolean;
 }
 
-export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
+export function TicketDownload({ data, qrCodeUrl, allowPhotoUpload = true }: TicketDownloadProps) {
   const ticketRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingImg, setIsExportingImg] = useState(false);
@@ -181,7 +182,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
       </div>
 
       <div className="flex flex-col gap-3">
-        {!localPhotoUrl && (
+        {allowPhotoUpload && !localPhotoUrl && (
           <div className="mb-2">
             <label className="w-full flex items-center justify-center gap-3 bg-idi-gold/10 border-2 border-dashed border-idi-gold/20 py-4 rounded-2xl cursor-pointer hover:bg-idi-gold/10 transition-all group">
               {isUploading ? <RefreshCw size={20} className="animate-spin text-idi-gold" /> : <Camera size={20} className="text-idi-gold group-hover:scale-110 transition-transform" />}
@@ -196,7 +197,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
 
         <button 
           onClick={downloadPDF}
-          disabled={isExporting || isExportingImg || isUploading || !(localPhotoUrl || data.photoUrl)}
+          disabled={isExporting || isExportingImg || isUploading || (allowPhotoUpload && !(localPhotoUrl || data.photoUrl))}
           className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-idi-goldd-600 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isExporting ? <RefreshCw size={20} className="animate-spin" /> : <Download size={20} />}
@@ -205,14 +206,14 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
 
         <button 
           onClick={downloadImage}
-          disabled={isExporting || isExportingImg || isUploading || !(localPhotoUrl || data.photoUrl)}
+          disabled={isExporting || isExportingImg || isUploading || (allowPhotoUpload && !(localPhotoUrl || data.photoUrl))}
           className="w-full bg-white border-2 border-slate-900 text-slate-900 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isExportingImg ? <RefreshCw size={20} className="animate-spin" /> : <ImageIcon size={20} />}
           <span>{isExportingImg ? 'Menyiapkan Gambar...' : 'Unduh Kartu Peserta (PNG)'}</span>
         </button>
         
-        {!localPhotoUrl ? (
+        {allowPhotoUpload && !localPhotoUrl ? (
           <p className="text-[10px] text-amber-600 text-center font-black px-4 bg-amber-50 py-2 rounded-lg border border-amber-100 uppercase tracking-tighter">
             Silakan unggah foto terlebih dahulu untuk mengunduh kartu.
           </p>

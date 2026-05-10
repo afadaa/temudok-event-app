@@ -714,7 +714,7 @@ async function startServer() {
             updatedAt: new Date().toISOString()
           });
         } else {
-          // Fallback: update the allowed `photoUrl` field (firestore.rules permits this) so clients can see the image
+          // Fallback: keep payment proof in the same field the admin dashboard reads.
           const docRef = doc(db, 'registrations', orderId);
           const docSnap = await getDoc(docRef);
           if (!docSnap.exists()) {
@@ -722,11 +722,11 @@ async function startServer() {
           }
           try {
             await updateDoc(docRef, {
-              photoUrl: fullUrl,
+              paymentPhoto: fileUrl,
               updatedAt: new Date().toISOString()
             });
           } catch (updateErr: any) {
-            console.error('Firestore update error (client SDK) for photoUrl:', updateErr);
+            console.error('Firestore update error (client SDK) for paymentPhoto:', updateErr);
             // Remove the uploaded file to avoid orphaned files
             try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', file.filename)); } catch (e) {}
             if (updateErr?.code === 7 || updateErr?.message?.includes('PERMISSION_DENIED')) {

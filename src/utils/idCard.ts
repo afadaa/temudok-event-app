@@ -11,6 +11,86 @@ const loadImage = (src: string) => new Promise<HTMLImageElement>((resolve, rejec
   img.src = src;
 });
 
+const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    const testLine = current ? `${current} ${word}` : word;
+    if (ctx.measureText(testLine).width <= maxWidth) {
+      current = testLine;
+      continue;
+    }
+
+    if (current) lines.push(current);
+
+    if (ctx.measureText(word).width <= maxWidth) {
+      current = word;
+      continue;
+    }
+
+    let chunk = '';
+    for (const char of word) {
+      const testChunk = `${chunk}${char}`;
+      if (ctx.measureText(testChunk).width <= maxWidth) {
+        chunk = testChunk;
+      } else {
+        if (chunk) lines.push(chunk);
+        chunk = char;
+      }
+    }
+    current = chunk;
+  }
+
+  if (current) lines.push(current);
+  return lines;
+};
+
+const fitTextLines = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+  startFontSize: number,
+  minFontSize: number
+) => {
+  const normalized = text.trim().toUpperCase();
+
+  for (let size = startFontSize; size >= minFontSize; size -= 1) {
+    ctx.font = `bold ${size}px sans-serif`;
+    const lines = wrapText(ctx, normalized, maxWidth);
+    if (lines.length <= maxLines) {
+      return { fontSize: size, lines };
+    }
+  }
+
+  ctx.font = `bold ${minFontSize}px sans-serif`;
+  const lines = wrapText(ctx, normalized, maxWidth).slice(0, maxLines);
+  if (lines.length === maxLines) {
+    let lastLine = lines[maxLines - 1];
+    while (lastLine.length > 1 && ctx.measureText(`${lastLine}...`).width > maxWidth) {
+      lastLine = lastLine.slice(0, -1).trim();
+    }
+    lines[maxLines - 1] = `${lastLine}...`;
+  }
+
+  return { fontSize: minFontSize, lines };
+};
+
+const formatParticipantType = (category: string) => {
+  const normalized = category.trim().toUpperCase();
+  if (!normalized) return '';
+
+  if (normalized.startsWith('UTUSAN')) return 'UTUSAN';
+  if (normalized.startsWith('PESERTA')) return 'PESERTA';
+  if (normalized.startsWith('TAMU')) return 'TAMU';
+  if (normalized.startsWith('PERHATI')) return 'PERHATI';
+  if (normalized.startsWith('PANITIA')) return 'PANITIA';
+
+  return normalized.split(/\s+/)[0];
+};
+
 export async function composeIdCard(
   templateSrc: string | undefined,
   photoSrc: string,
@@ -39,10 +119,10 @@ export async function composeIdCard(
   const contentH = height - headerH;
 
   // ── 1. FOTO ──────────────────────────────────────────────────────────────
-  // Kotak persegi, centered, ukuran 42% lebar kartu
-  const photoSize = Math.round(width * 0.42);
+  // Kotak persegi, centered, dibuat lebih kecil agar nama panjang tetap punya ruang.
+  const photoSize = Math.round(width * 0.34);
   const photoX    = Math.round((width - photoSize) / 2);
-  const photoY    = headerH + Math.round(contentH * 0.04) + photoYOffset;
+  const photoY    = headerH + Math.round(contentH * 0.015) + photoYOffset;
 
   // ── FRAME MOTIF BATIK KALTIM ─────────────────────────────────────────────
   const frameW    = Math.round(photoSize * 0.10); // tebal frame
@@ -232,15 +312,33 @@ export async function composeIdCard(
   }
 
   // ── 2. NAMA ──────────────────────────────────────────────────────────────
-  const nameFontSize = Math.round(width * 0.058);
-  const nameY        = photoY + photoSize + Math.round(contentH * 0.10) + nameYOffset;
+  const qrSize = Math.round(width * 0.20);
+  const qrX = Math.round((width - qrSize) / 2);
+  const qrY = Math.round(height * 0.765);
+  const idLabelY = qrY - Math.round(contentH * 0.030);
+  const dividerY = idLabelY - Math.round(contentH * 0.055);
+  const catY = dividerY + Math.round(contentH * 0.018);
+
+  const nameFontSize = Math.round(width * 0.046);
+  const nameTop      = frameY + frameFull + Math.round(contentH * 0.035) + nameYOffset;
+  const nameBlockH   = Math.max(Math.round(contentH * 0.090), dividerY - nameTop - Math.round(contentH * 0.020));
+  const nameMaxWidth = Math.round(width * 0.74);
+  const fittedName   = fitTextLines(ctx, name, nameMaxWidth, 3, nameFontSize, Math.round(width * 0.024));
+  const nameLineH    = Math.round(fittedName.fontSize * 1.12);
+  const nameStartY   = nameTop + Math.round((nameBlockH - (fittedName.lines.length - 1) * nameLineH) / 2);
   ctx.fillStyle  = '#0f172a';
   ctx.textAlign  = 'center';
-  ctx.font       = `bold ${nameFontSize}px sans-serif`;
-  ctx.fillText(name.toUpperCase(), width / 2, nameY);
+  ctx.font       = `bold ${fittedName.fontSize}px sans-serif`;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(Math.round((width - nameMaxWidth) / 2), nameTop - fittedName.fontSize, nameMaxWidth, nameBlockH + fittedName.fontSize);
+  ctx.clip();
+  fittedName.lines.forEach((line, index) => {
+    ctx.fillText(line, width / 2, nameStartY + index * nameLineH, nameMaxWidth);
+  });
+  ctx.restore();
 
   // ── 3. DIVIDER ───────────────────────────────────────────────────────────
-  const dividerY = nameY + Math.round(contentH * 0.013);
   ctx.strokeStyle = 'rgba(0,0,0,0.18)';
   ctx.lineWidth   = Math.max(1, Math.round(width * 0.0015));
   const divStart  = Math.round(width * 0.28);
@@ -252,23 +350,24 @@ export async function composeIdCard(
 
   // ── 4. KATEGORI ──────────────────────────────────────────────────────────
   const catFontSize = Math.round(width * 0.028);
-  const catY        = dividerY + Math.round(contentH * 0.040);
   ctx.fillStyle = '#1f2937';
   ctx.font      = `${catFontSize}px sans-serif`;
-  ctx.fillText(category.toUpperCase(), width / 2, catY);
+  let fittedCatFontSize = catFontSize;
+  const catMaxWidth = Math.round(width * 0.80);
+  const participantType = formatParticipantType(category);
+  while (fittedCatFontSize > Math.round(width * 0.018) && ctx.measureText(participantType).width > catMaxWidth) {
+    fittedCatFontSize -= 1;
+    ctx.font = `${fittedCatFontSize}px sans-serif`;
+  }
+  ctx.fillText(participantType, width / 2, catY);
 
   // ── 5. LABEL "ID REGISTRASI" ─────────────────────────────────────────────
-  const idLabelY   = catY + Math.round(contentH * 0.055);
   const idFontSize = Math.round(width * 0.022);
   ctx.fillStyle = '#374151';
   ctx.font      = `bold ${idFontSize}px sans-serif`;
-//   ctx.fillText('ID REGISTRASI', width / 2, idLabelY);
 
   // ── 6. QR CODE (tanpa background, ukuran 50%) ────────────────────────────
   const qrImg      = await loadImage(qrDataUrl);
-const qrSize     = Math.round(width * 0.21); // 40% dari lebar kartu
-  const qrX        = Math.round((width - qrSize) / 2);
-  const qrY        = idLabelY + Math.round(contentH * 0.035);
   ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
   return canvas;

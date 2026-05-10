@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit, FileDown, Camera, BookOpen, LayoutGrid, X, CheckSquare, Square, Menu } from 'lucide-react';
+import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit, FileDown, Camera, BookOpen, LayoutGrid, X, CheckSquare, Square, Menu, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -56,6 +56,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
+  const [editingEmailValue, setEditingEmailValue] = useState('');
+  const [emailActionLoadingId, setEmailActionLoadingId] = useState<string | null>(null);
+  const [paymentUploadLoadingId, setPaymentUploadLoadingId] = useState<string | null>(null);
 
   // Modal State
   const [showBranchModal, setShowBranchModal] = useState(false);
@@ -360,6 +364,111 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     finally { setLoading(false); }
   };
 
+  const startEditEmail = (registrant: Registrant) => {
+    setEditingEmailId(registrant.id);
+    setEditingEmailValue(registrant.email);
+  };
+
+  const cancelEditEmail = () => {
+    setEditingEmailId(null);
+    setEditingEmailValue('');
+  };
+
+  const updateRegistrantEmail = async (registrant: Registrant) => {
+    const email = editingEmailValue.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Format email tidak valid');
+      return;
+    }
+    if (email === registrant.email.toLowerCase()) {
+      cancelEditEmail();
+      return;
+    }
+
+    setEmailActionLoadingId(registrant.id);
+    try {
+      const res = await fetch(`/api/admin/registrations/${encodeURIComponent(registrant.id)}/email`, {
+        method: 'PUT',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || 'Gagal memperbarui email');
+        return;
+      }
+
+      setRegistrants(prev => prev.map(item => item.id === registrant.id ? { ...item, email } : item));
+      toast.success('Email peserta diperbarui');
+      cancelEditEmail();
+    } catch (e) {
+      toast.error('Terjadi kesalahan jaringan');
+    } finally {
+      setEmailActionLoadingId(null);
+    }
+  };
+
+  const resendRegistrantEmail = async (registrant: Registrant) => {
+    if (!window.confirm(`Kirim ulang e-tiket ke ${registrant.email}?`)) return;
+
+    setEmailActionLoadingId(registrant.id);
+    try {
+      const res = await fetch('/api/admin/resend-email', {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: registrant.id })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success(data.message || 'Email berhasil dikirim ulang');
+      } else {
+        toast.error(data.error || 'Gagal mengirim ulang email');
+      }
+    } catch (e) {
+      toast.error('Terjadi kesalahan jaringan');
+    } finally {
+      setEmailActionLoadingId(null);
+    }
+  };
+
+  const uploadPaymentProof = async (registrant: Registrant, file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Bukti pembayaran harus berupa gambar');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('orderId', registrant.id);
+    formData.append('paymentPhoto', file);
+
+    setPaymentUploadLoadingId(registrant.id);
+    try {
+      const res = await fetch('/api/update-payment', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data.error || 'Gagal mengunggah bukti pembayaran');
+        return;
+      }
+
+      const paymentPhoto = data.fileUrl || data.fileUrlFull;
+      if (paymentPhoto) {
+        setRegistrants(prev => prev.map(item => item.id === registrant.id ? { ...item, paymentPhoto } : item));
+      }
+      toast.success('Bukti pembayaran berhasil diunggah');
+    } catch (e) {
+      toast.error('Terjadi kesalahan saat mengunggah bukti pembayaran');
+    } finally {
+      setPaymentUploadLoadingId(null);
+    }
+  };
+
   const handleExport = async () => {
     if (filteredRegistrants.length === 0) {
       toast.error('Tidak ada data untuk diekspor');
@@ -638,6 +747,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         <th className="px-6 py-4">Kategori</th>
                         <th className="px-6 py-4">Cabang</th>
                         <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4 text-right">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 text-sm">
@@ -646,6 +756,23 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         return (
                         <tr key={r.id}>
                           <td className="px-6 py-4">
+                            <label
+                              title={r.paymentPhoto ? 'Ganti bukti pembayaran' : 'Upload bukti pembayaran'}
+                              className={`mb-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 ${paymentUploadLoadingId === r.id ? 'pointer-events-none opacity-60' : ''}`}
+                            >
+                              {paymentUploadLoadingId === r.id ? <RefreshCw size={12} className="animate-spin" /> : <Upload size={12} />}
+                              {r.paymentPhoto ? 'Ganti' : 'Upload'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={paymentUploadLoadingId === r.id}
+                                onChange={(e) => {
+                                  uploadPaymentProof(r, e.target.files?.[0]);
+                                  e.currentTarget.value = '';
+                                }}
+                              />
+                            </label>
                             {r.paymentPhoto ? (() => {
                               // support: data URLs (base64), absolute URLs, or stored filename
                               let photoUrl = r.paymentPhoto;
@@ -665,7 +792,52 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             <div className="font-bold text-slate-800">{r.fullName}</div>
                             <div className="text-[11px] text-slate-500">ID: {r.id}</div>
                           </td>
-                          <td className="px-6 py-4 text-[13px] text-slate-600">{r.email}</td>
+                          <td className="px-6 py-4 text-[13px] text-slate-600 min-w-[240px]">
+                            {editingEmailId === r.id ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="email"
+                                  value={editingEmailValue}
+                                  onChange={(e) => setEditingEmailValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') updateRegistrantEmail(r);
+                                    if (e.key === 'Escape') cancelEditEmail();
+                                  }}
+                                  className="w-52 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
+                                  autoFocus
+                                />
+                                <button
+                                  type="button"
+                                  title="Simpan email"
+                                  disabled={emailActionLoadingId === r.id}
+                                  onClick={() => updateRegistrantEmail(r)}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                >
+                                  {emailActionLoadingId === r.id ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Batal"
+                                  onClick={cancelEditEmail}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-900"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span>{r.email}</span>
+                                <button
+                                  type="button"
+                                  title="Edit email peserta"
+                                  onClick={() => startEditEmail(r)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 hover:bg-slate-50 hover:text-emerald-600"
+                                >
+                                  <Edit size={14} />
+                                </button>
+                              </div>
+                            )}
+                          </td>
                           <td className="px-6 py-4 text-[13px] text-slate-600">{r.phone}</td>
                           <td className="px-6 py-4"><span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase">{r.category}</span></td>
                           <td className="px-6 py-4 font-semibold text-slate-600">{branchName}</td>
@@ -677,6 +849,20 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                               {r.status !== 'settlement' && r.status !== 'capture' && (
                                 <button onClick={() => markAsPaid(r.id)} className="text-xs font-black text-white bg-emerald-600 px-3 py-1 rounded-full hover:bg-emerald-700">Tandai Lunas</button>
                               )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                title="Kirim ulang e-tiket ke email peserta"
+                                disabled={emailActionLoadingId === r.id || (r.status !== 'settlement' && r.status !== 'capture')}
+                                onClick={() => resendRegistrantEmail(r)}
+                                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {emailActionLoadingId === r.id ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />}
+                                Kirim Ulang
+                              </button>
                             </div>
                           </td>
                         </tr>

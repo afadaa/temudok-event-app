@@ -3,6 +3,8 @@ import { collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc } fr
 import { db, adminDb } from '../config/firebase.ts';
 import { sendTicketEmail, sendBroadcastEmail } from '../services/MailService.ts';
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export class AdminController {
   static async getRegistrations(req: Request, res: Response) {
     try {
@@ -155,6 +157,39 @@ export class AdminController {
     } catch (error) {
       console.error('Guestbook Error:', error);
       res.status(500).json({ error: 'Gagal mengambil data buku tamu' });
+    }
+  }
+
+  static async updateRegistrationEmail(req: Request, res: Response) {
+    try {
+      const { orderId } = req.params;
+      const email = String(req.body.email || '').trim().toLowerCase();
+
+      if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+      if (!emailPattern.test(email)) return res.status(400).json({ error: 'Format email tidak valid' });
+
+      const payload = {
+        email,
+        updatedAt: new Date().toISOString(),
+        emailUpdatedAt: new Date().toISOString()
+      };
+
+      if (adminDb) {
+        const ref = adminDb.collection('registrations').doc(orderId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'Registration not found' });
+        await ref.update(payload);
+      } else {
+        const docRef = doc(db, 'registrations', orderId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) return res.status(404).json({ error: 'Registration not found' });
+        await updateDoc(docRef, payload);
+      }
+
+      res.json({ success: true, email });
+    } catch (error) {
+      console.error('updateRegistrationEmail Error:', error);
+      res.status(500).json({ error: 'Gagal memperbarui email peserta' });
     }
   }
 

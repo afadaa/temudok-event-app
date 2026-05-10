@@ -312,7 +312,7 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
                             className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors"
                           >
                             <ImageIcon size={14} />
-                            Ganti Foto
+                            Ganti Bukti
                           </button>
                           <button
                             type="button"

@@ -62,6 +62,7 @@ function MainApp() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [view, setView] = useState<'registration' | 'status'>('registration');
   const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string, photoUrl?: string, eventTitle?: string } | null>(null);
+  const [ticketFromStatusCheck, setTicketFromStatusCheck] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [pendingOrderId, setPendingOrderId] = useState<string | undefined>(undefined);
 
@@ -110,6 +111,7 @@ function MainApp() {
   const handleSuccess = async (data: { fullName: string, email: string, category: string, orderId?: string, photoUrl?: string }) => {
     const eventTitle = activeEvent?.title || 'MUSWIL IDI KALTIM 2026';
     const regDataWithTitle = { ...data, eventTitle };
+    setTicketFromStatusCheck(false);
     setRegData(regDataWithTitle);
     
     const qrText = JSON.stringify({
@@ -143,6 +145,7 @@ function MainApp() {
         photoUrl: data.photoUrl,
         eventTitle: eventTitle
       });
+      setTicketFromStatusCheck(true);
 
       const qrText = JSON.stringify({
         id: data.order_id,
@@ -182,6 +185,7 @@ function MainApp() {
     setIsSuccess(false);
     setRegData(null);
     setQrCodeUrl('');
+    setTicketFromStatusCheck(false);
   };
 
   return (
@@ -460,7 +464,7 @@ function MainApp() {
                         />
                       </>
                     ) : (
-                      regData && <TicketDownload data={regData} qrCodeUrl={qrCodeUrl} />
+                      regData && <TicketDownload data={regData} qrCodeUrl={qrCodeUrl} allowPhotoUpload={!ticketFromStatusCheck} />
                     )
                   ) : (
                     <CheckStatus 
@@ -630,7 +634,7 @@ function MainApp() {
                           className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2"
                         >
                           <ImageIcon size={14} />
-                          Ganti Foto
+                          Ganti Bukti
                         </button>
                         <button
                           type="button"
