@@ -317,11 +317,11 @@ export async function composeIdCard(
   const qrY = Math.round(height * 0.765);
   const idLabelY = qrY - Math.round(contentH * 0.030);
   const dividerY = idLabelY - Math.round(contentH * 0.055);
-  const catY = dividerY + Math.round(contentH * 0.018);
+  const catY = dividerY - Math.round(contentH * 0.014);
 
   const nameFontSize = Math.round(width * 0.046);
   const nameTop      = frameY + frameFull + Math.round(contentH * 0.035) + nameYOffset;
-  const nameBlockH   = Math.max(Math.round(contentH * 0.090), dividerY - nameTop - Math.round(contentH * 0.020));
+  const nameBlockH   = Math.max(Math.round(contentH * 0.080), catY - nameTop - Math.round(contentH * 0.030));
   const nameMaxWidth = Math.round(width * 0.74);
   const fittedName   = fitTextLines(ctx, name, nameMaxWidth, 3, nameFontSize, Math.round(width * 0.024));
   const nameLineH    = Math.round(fittedName.fontSize * 1.12);
@@ -339,9 +339,9 @@ export async function composeIdCard(
   ctx.restore();
 
   // ── 3. DIVIDER ───────────────────────────────────────────────────────────
-  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.strokeStyle = 'rgba(0,0,0,0)';
   ctx.lineWidth   = Math.max(1, Math.round(width * 0.0015));
-  const divStart  = Math.round(width * 0.28);
+  const divStart  = Math.round(width * 0.15);
   const divEnd    = width - divStart;
   ctx.beginPath();
   ctx.moveTo(divStart, dividerY);
@@ -349,11 +349,11 @@ export async function composeIdCard(
   ctx.stroke();
 
   // ── 4. KATEGORI ──────────────────────────────────────────────────────────
-  const catFontSize = Math.round(width * 0.028);
+  const catFontSize = Math.round(width * 0.030);
   ctx.fillStyle = '#1f2937';
   ctx.font      = `${catFontSize}px sans-serif`;
   let fittedCatFontSize = catFontSize;
-  const catMaxWidth = Math.round(width * 0.80);
+  const catMaxWidth = Math.round(width * 0.40);
   const participantType = formatParticipantType(category);
   while (fittedCatFontSize > Math.round(width * 0.018) && ctx.measureText(participantType).width > catMaxWidth) {
     fittedCatFontSize -= 1;
