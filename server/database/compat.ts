@@ -48,9 +48,13 @@ const columns: Record<string, string[]> = {
   ],
 };
 
-export const databaseProvider = ((process.env.DATABASE_PROVIDER || process.env.DB_PROVIDER || 'firestore').toLowerCase() === 'mysql'
+const rawDatabaseProvider = String(process.env.DATABASE_PROVIDER || process.env.DB_PROVIDER || 'firestore').trim().toLowerCase();
+
+export const databaseProvider = (rawDatabaseProvider === 'mysql'
   ? 'mysql'
   : 'firestore') as Provider;
+
+console.log(`Database provider: ${databaseProvider}`);
 
 let firebaseConfig: any;
 try {
@@ -62,18 +66,21 @@ try {
   console.warn('Could not read firebase-applet-config.json, relying on environment variables');
 }
 
-const firebaseRuntimeConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || firebaseConfig?.apiKey,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || firebaseConfig?.authDomain,
-  projectId: process.env.FIREBASE_PROJECT_ID || firebaseConfig?.projectId,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || firebaseConfig?.storageBucket,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || firebaseConfig?.messagingSenderId,
-  appId: process.env.FIREBASE_APP_ID || firebaseConfig?.appId,
-  firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || firebaseConfig?.firestoreDatabaseId,
-};
+let firestoreDb: any = null;
+if (databaseProvider === 'firestore') {
+  const firebaseRuntimeConfig = {
+    apiKey: process.env.FIREBASE_API_KEY || firebaseConfig?.apiKey,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || firebaseConfig?.authDomain,
+    projectId: process.env.FIREBASE_PROJECT_ID || firebaseConfig?.projectId,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || firebaseConfig?.storageBucket,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || firebaseConfig?.messagingSenderId,
+    appId: process.env.FIREBASE_APP_ID || firebaseConfig?.appId,
+    firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || firebaseConfig?.firestoreDatabaseId,
+  };
 
-const firebaseApp = initializeApp(firebaseRuntimeConfig);
-const firestoreDb = getFirestore(firebaseApp, firebaseRuntimeConfig.firestoreDatabaseId);
+  const firebaseApp = initializeApp(firebaseRuntimeConfig);
+  firestoreDb = getFirestore(firebaseApp, firebaseRuntimeConfig.firestoreDatabaseId);
+}
 
 export let adminDb: admin.firestore.Firestore | null = null;
 if (databaseProvider === 'firestore') {

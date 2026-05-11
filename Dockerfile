@@ -42,6 +42,8 @@ COPY --from=builder /app/dist ./dist
 # Copy server source files
 COPY server.ts ./
 COPY server/ ./server/
+COPY database/ ./database/
+COPY scripts/ ./scripts/
 COPY tsconfig.json ./
 
 # Copy firebase config if exists (will be overridden by env vars in production)
