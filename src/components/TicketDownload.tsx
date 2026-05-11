@@ -1,6 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { Download, CheckCircle2, Ticket, RefreshCw, Image as ImageIcon, Camera, Upload } from 'lucide-react';
 import { composeIdCard, downloadCanvasAsPdf, downloadCanvasAsPng } from '../utils/idCard';
+import { composeUtusanIdCard, downloadUtusanCanvasAsPdf, downloadUtusanCanvasAsPng } from '../utils/idCardUtusan';
+import { composePeninjauIdCard, downloadPeninjauCanvasAsPdf, downloadPeninjauCanvasAsPng } from '../utils/idCardPeninjau';
+import { composePanitiaIdCard, downloadPanitiaCanvasAsPdf, downloadPanitiaCanvasAsPng } from '../utils/idCardPanitia';
 import { toast } from 'sonner';
 
 interface TicketDownloadProps {
@@ -16,12 +19,17 @@ interface TicketDownloadProps {
   allowPhotoUpload?: boolean;
 }
 
-export function TicketDownload({ data, qrCodeUrl, allowPhotoUpload = true }: TicketDownloadProps) {
+export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
   const ticketRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingImg, setIsExportingImg] = useState(false);
   const [localPhotoUrl, setLocalPhotoUrl] = useState(data.photoUrl || '');
   const [isUploading, setIsUploading] = useState(false);
+  const normalizedCategory = data.category.trim().toUpperCase();
+  const isUtusan = normalizedCategory.startsWith('UTUSAN');
+  const isPeninjau = normalizedCategory.startsWith('PENINJAU');
+  const isPanitia = normalizedCategory.startsWith('PANITIA');
+  const requiresPhoto = !isPanitia;
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,8 +79,23 @@ export function TicketDownload({ data, qrCodeUrl, allowPhotoUpload = true }: Tic
     setIsExportingImg(true);
     try {
       const photoSrc = data.photoUrl || localPhotoUrl || '';
-  const canvas = await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
-      downloadCanvasAsPng(canvas, `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.png`);
+      const canvas = isPanitia
+        ? await composePanitiaIdCard(data.fullName)
+        : isPeninjau
+          ? await composePeninjauIdCard(photoSrc, data.fullName, data.orderId || '')
+          : isUtusan
+            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '')
+            : await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
+      const filename = `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.png`;
+      if (isPanitia) {
+        downloadPanitiaCanvasAsPng(canvas, filename);
+      } else if (isPeninjau) {
+        downloadPeninjauCanvasAsPng(canvas, filename);
+      } else if (isUtusan) {
+        downloadUtusanCanvasAsPng(canvas, filename);
+      } else {
+        downloadCanvasAsPng(canvas, filename);
+      }
     } catch (error) {
       console.error('Image Generation Error:', error);
       alert('Gagal mengunduh Gambar. Silakan coba lagi.');
@@ -86,8 +109,23 @@ export function TicketDownload({ data, qrCodeUrl, allowPhotoUpload = true }: Tic
     setIsExporting(true);
     try {
       const photoSrc = data.photoUrl || localPhotoUrl || '';
-  const canvas = await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
-      downloadCanvasAsPdf(canvas, `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.pdf`);
+      const canvas = isPanitia
+        ? await composePanitiaIdCard(data.fullName)
+        : isPeninjau
+          ? await composePeninjauIdCard(photoSrc, data.fullName, data.orderId || '')
+          : isUtusan
+            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '')
+            : await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
+      const filename = `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.pdf`;
+      if (isPanitia) {
+        downloadPanitiaCanvasAsPdf(canvas, filename);
+      } else if (isPeninjau) {
+        downloadPeninjauCanvasAsPdf(canvas, filename);
+      } else if (isUtusan) {
+        downloadUtusanCanvasAsPdf(canvas, filename);
+      } else {
+        downloadCanvasAsPdf(canvas, filename);
+      }
     } catch (error) {
       console.error('PDF Generation Error:', error);
       alert('Gagal mengunduh Kartu Peserta. Silakan coba lagi.');
@@ -182,7 +220,7 @@ export function TicketDownload({ data, qrCodeUrl, allowPhotoUpload = true }: Tic
       </div>
 
       <div className="flex flex-col gap-3">
-        {allowPhotoUpload && !localPhotoUrl && (
+        {requiresPhoto && !localPhotoUrl && (
           <div className="mb-2">
             <label className="w-full flex items-center justify-center gap-3 bg-idi-gold/10 border-2 border-dashed border-idi-gold/20 py-4 rounded-2xl cursor-pointer hover:bg-idi-gold/10 transition-all group">
               {isUploading ? <RefreshCw size={20} className="animate-spin text-idi-gold" /> : <Camera size={20} className="text-idi-gold group-hover:scale-110 transition-transform" />}
@@ -197,7 +235,7 @@ export function TicketDownload({ data, qrCodeUrl, allowPhotoUpload = true }: Tic
 
         <button 
           onClick={downloadPDF}
-          disabled={isExporting || isExportingImg || isUploading || (allowPhotoUpload && !(localPhotoUrl || data.photoUrl))}
+          disabled={isExporting || isExportingImg || isUploading || (requiresPhoto && !(localPhotoUrl || data.photoUrl))}
           className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-idi-goldd-600 transition-all shadow-xl shadow-slate-900/10 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isExporting ? <RefreshCw size={20} className="animate-spin" /> : <Download size={20} />}
@@ -206,14 +244,14 @@ export function TicketDownload({ data, qrCodeUrl, allowPhotoUpload = true }: Tic
 
         <button 
           onClick={downloadImage}
-          disabled={isExporting || isExportingImg || isUploading || (allowPhotoUpload && !(localPhotoUrl || data.photoUrl))}
+          disabled={isExporting || isExportingImg || isUploading || (requiresPhoto && !(localPhotoUrl || data.photoUrl))}
           className="w-full bg-white border-2 border-slate-900 text-slate-900 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isExportingImg ? <RefreshCw size={20} className="animate-spin" /> : <ImageIcon size={20} />}
           <span>{isExportingImg ? 'Menyiapkan Gambar...' : 'Unduh Kartu Peserta (PNG)'}</span>
         </button>
         
-        {allowPhotoUpload && !localPhotoUrl ? (
+        {requiresPhoto && !localPhotoUrl ? (
           <p className="text-[10px] text-amber-600 text-center font-black px-4 bg-amber-50 py-2 rounded-lg border border-amber-100 uppercase tracking-tighter">
             Silakan unggah foto terlebih dahulu untuk mengunduh kartu.
           </p>
