@@ -147,9 +147,9 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
       </div>
 
       {/* Card Preview Container */}
-      <div className="flex justify-center overflow-x-auto py-4">
+      <div className="flex justify-center overflow-hidden py-2 sm:py-4">
         {/* The target for export (styled to match app theme) */}
-        <div ref={ticketRef} className="w-[302px] h-[397px] bg-white relative overflow-hidden shadow-2xl rounded-2xl flex-shrink-0 border border-idi-gold/10">
+        <div ref={ticketRef} className="w-[302px] h-[397px] bg-white relative overflow-hidden shadow-2xl rounded-2xl flex-shrink-0 border border-idi-gold/10 origin-top scale-[0.86] sm:scale-100 -mb-12 sm:mb-0 transition-transform duration-300">
 
           {/* Decorative accents similar to App.tsx */}
           <div className="absolute -right-24 -top-24 w-48 h-48 rounded-full bg-idi-gold/10"></div>

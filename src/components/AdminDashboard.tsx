@@ -869,13 +869,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
           
           {activeTab === 'registrations' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Data Pendaftar</h2>
-                <div className="flex items-center gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
                   <button
                     type="button"
                     onClick={downloadImportTemplate}
-                    className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300 hover:bg-slate-50 transition-all"
+                    className="flex min-h-10 items-center justify-center gap-2 bg-white border border-slate-200 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300 hover:bg-slate-50 transition-all"
                   >
                     <FileDown size={14} />
                     Template
@@ -891,7 +891,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     type="button"
                     disabled={loadingImport}
                     onClick={() => importFileRef.current?.click()}
-                    className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-indigo-600 uppercase tracking-widest hover:border-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
+                    className="flex min-h-10 items-center justify-center gap-2 bg-white border border-slate-200 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-black text-indigo-600 uppercase tracking-widest hover:border-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
                   >
                     {loadingImport ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
                     {loadingImport ? 'Mengimpor...' : 'Import Excel'}
@@ -899,12 +899,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   <button 
                     disabled={loadingExport}
                     onClick={handleExport}
-                    className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-emerald-600 uppercase tracking-widest hover:border-emerald-600 hover:bg-emerald-50 transition-all disabled:opacity-50"
+                    className="flex min-h-10 items-center justify-center gap-2 bg-white border border-slate-200 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-black text-emerald-600 uppercase tracking-widest hover:border-emerald-600 hover:bg-emerald-50 transition-all disabled:opacity-50"
                   >
                     {loadingExport ? <RefreshCw size={14} className="animate-spin" /> : <FileDown size={14} />} 
                     {loadingExport ? 'Mengekspor...' : 'Ekspor Excel'}
                   </button>
-                  <button onClick={fetchRegistrants} className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300">
+                  <button onClick={fetchRegistrants} className="flex min-h-10 items-center justify-center gap-2 bg-white border border-slate-200 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300">
                     <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
                   </button>
                 </div>
@@ -1524,17 +1524,26 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
       {/* Event Modal */}
       {showEventModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-10 shadow-2xl relative overflow-y-auto max-h-[90vh]">
-            <div className="absolute top-8 right-8">
-               <button onClick={() => setShowEventModal(false)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="bg-white w-full max-w-2xl rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl relative overflow-hidden max-h-[92vh] flex flex-col"
+          >
+            <div className="sticky top-0 z-20 bg-white/95 backdrop-blur px-6 py-5 sm:px-10 sm:py-7 border-b border-slate-100">
+              <div className="flex items-start justify-between gap-4">
+                <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-slate-900">
+                  {editingEvent ? 'Edit Event' : 'Tambah Event Baru'}
+                </h3>
+                <button onClick={() => setShowEventModal(false)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors">
                   <X size={24} />
-               </button>
+                </button>
+              </div>
             </div>
-            <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-8">
-              {editingEvent ? 'Edit Event' : 'Tambah Event Baru'}
-            </h3>
-            <form onSubmit={saveEvent} className="space-y-6">
+            <form onSubmit={saveEvent} className="flex min-h-0 flex-1 flex-col">
+              <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-10 sm:py-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 ml-1">Judul Event</label>
@@ -1689,15 +1698,16 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
               </div>
+              </div>
               
-              <div className="pt-6 flex gap-4">
+              <div className="sticky bottom-0 z-20 flex gap-3 sm:gap-4 border-t border-slate-100 bg-white/95 px-6 py-4 backdrop-blur sm:px-10">
                 <button type="button" onClick={() => setShowEventModal(false)} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-400 hover:bg-slate-50">Batal</button>
                 <button type="submit" disabled={loading} className="flex-1 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center justify-center gap-2">
                   {loading ? <RefreshCw size={16} className="animate-spin" /> : 'Simpan Event'}
                 </button>
               </div>
             </form>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>

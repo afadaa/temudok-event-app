@@ -56,6 +56,10 @@ function getSnap() {
   return snapInstance;
 }
 
+function shouldUseMidtransSnap() {
+  return process.env.VITE_USE_MIDTRANS_SNAP === 'true' || process.env.USE_MIDTRANS_SNAP === 'true';
+}
+
 // Nodemailer Setup
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
@@ -299,6 +303,10 @@ async function startServer() {
       };
       await setDoc(doc(db, 'registrations', orderId), pendingReg);
 
+      if (!shouldUseMidtransSnap()) {
+        return res.json({ orderId, isBankTransfer: true });
+      }
+
       // Dummy Mode Check
       if (!process.env.MIDTRANS_SERVER_KEY || process.env.MIDTRANS_SERVER_KEY === 'MY_MIDTRANS_SERVER_KEY') {
         console.log('Dummy Payment Triggered for:', validatedData.email);
@@ -355,6 +363,92 @@ async function startServer() {
     }
   });
 
+  app.post('/api/admin/registrations/import', requireAdmin, async (req, res) => {
+    try {
+      const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+      if (!rows.length) {
+        return res.status(400).json({ error: 'Data Excel kosong' });
+      }
+
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const imported: any[] = [];
+      const errors: { row: number; message: string }[] = [];
+      const now = new Date().toISOString();
+
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index] || {};
+        const rowNumber = index + 2;
+        const fullName = String(row.fullName || '').trim();
+        const email = String(row.email || '').trim().toLowerCase();
+        const phone = String(row.phone || '').trim();
+        const eventId = String(row.eventId || '').trim();
+        const categoryId = String(row.categoryId || '').trim();
+        const category = String(row.category || '').trim();
+
+        if (!fullName) {
+          errors.push({ row: rowNumber, message: 'Nama Lengkap wajib diisi' });
+          continue;
+        }
+        if (!emailPattern.test(email)) {
+          errors.push({ row: rowNumber, message: 'Email tidak valid' });
+          continue;
+        }
+        if (phone.length < 8) {
+          errors.push({ row: rowNumber, message: 'Nomor WhatsApp wajib diisi' });
+          continue;
+        }
+        if (!eventId) {
+          errors.push({ row: rowNumber, message: 'Event ID wajib diisi' });
+          continue;
+        }
+        if (!categoryId && !category) {
+          errors.push({ row: rowNumber, message: 'Kategori ID atau Kategori wajib diisi' });
+          continue;
+        }
+
+        const orderId = String(row.orderId || '').trim() || `import-${Date.now()}-${index + 1}`;
+        const status = String(row.status || 'settlement').trim().toLowerCase();
+        const amountNumber = Number(row.amount || 0);
+        const payload = {
+          orderId,
+          eventId,
+          eventTitle: String(row.eventTitle || '').trim(),
+          fullName,
+          email,
+          phone,
+          npa: String(row.npa || '').trim(),
+          category: category || categoryId,
+          categoryId: categoryId || category,
+          branchId: String(row.branchId || '').trim(),
+          kriteria: String(row.kriteria || '').trim(),
+          tipePeserta: String(row.tipePeserta || '').trim(),
+          suratMandatUrl: String(row.suratMandatUrl || '').trim(),
+          komisi: String(row.komisi || '').trim(),
+          perhimpunanName: String(row.perhimpunanName || '').trim(),
+          mkekBranch: String(row.mkekBranch || '').trim(),
+          bersedia: row.bersedia === true || String(row.bersedia || '').toLowerCase() === 'true' || String(row.bersedia || '').toLowerCase() === 'ya',
+          status: status || 'settlement',
+          amount: Number.isFinite(amountNumber) ? amountNumber : 0,
+          paymentVerified: ['settlement', 'capture'].includes(status),
+          createdAt: String(row.createdAt || '').trim() || now,
+          updatedAt: now,
+        };
+
+        try {
+          await setDoc(doc(db, 'registrations', orderId), payload);
+          imported.push({ orderId, fullName, email });
+        } catch (rowError: any) {
+          errors.push({ row: rowNumber, message: rowError?.message || 'Gagal menyimpan data' });
+        }
+      }
+
+      res.json({ success: true, imported: imported.length, errors });
+    } catch (error: any) {
+      console.error('Import Registrations Error:', error);
+      res.status(500).json({ error: 'Gagal import data pendaftaran', detail: error?.message });
+    }
+  });
+
   // Public APIs for form
   app.get('/api/branches', async (req, res) => {
     try {
@@ -375,7 +469,26 @@ async function startServer() {
     try {
       const q = query(collection(db, 'events'), where('isActive', '==', true), orderBy('startDate', 'asc'));
       const snapshot = await getDocs(q);
-      res.json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const masterSnapshot = await getDocs(query(collection(db, 'categories'), orderBy('name', 'asc')));
+      const masterCategories = masterSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const masterMap = new Map(masterCategories.map((category: any) => [category.id, category]));
+      res.json(snapshot.docs.map(doc => {
+        const data: any = doc.data();
+        const eventCategories = Array.isArray(data.categories) ? data.categories : [];
+        const filteredCategories = masterMap.size > 0
+          ? eventCategories
+              .filter((eventCategory: any) => masterMap.has(eventCategory.id))
+              .map((eventCategory: any) => {
+                const masterCategory: any = masterMap.get(eventCategory.id);
+                return {
+                  ...eventCategory,
+                  name: masterCategory?.name || eventCategory.name,
+                  price: Number(eventCategory.price || 0) > 0 ? Number(eventCategory.price) : Number(masterCategory?.price || 0),
+                };
+              })
+          : eventCategories;
+        return { id: doc.id, ...data, categories: filteredCategories };
+      }));
     } catch (e) {
       console.error('Fetch events error:', e);
       res.status(500).json([]);
@@ -392,6 +505,15 @@ async function startServer() {
   app.post('/api/admin/events', requireAdmin, async (req, res) => {
     try {
       console.log('Admin creating event:', req.body.title);
+      const eventPayload = {
+        ...req.body,
+        categories: Array.isArray(req.body.categories)
+          ? req.body.categories.map((category: any) => ({
+              ...category,
+              price: Number(String(category.price || 0).replace(/[^\d]/g, '')) || 0,
+            }))
+          : [],
+      };
       // Optional: Check for recently created similar event to prevent duplicates
       const now = new Date();
       const fiveSecondsAgo = new Date(now.getTime() - 5000).toISOString();
@@ -406,7 +528,7 @@ async function startServer() {
         return res.status(409).json({ error: 'Event dengan judul serupa baru saja dibuat.' });
       }
 
-      const docRef = await addDoc(collection(db, 'events'), { ...req.body, createdAt: now.toISOString() });
+      const docRef = await addDoc(collection(db, 'events'), { ...eventPayload, createdAt: now.toISOString() });
       res.json({ id: docRef.id });
     } catch (error) { 
       console.error('Error creating event:', error);
@@ -417,7 +539,16 @@ async function startServer() {
   app.put('/api/admin/events/:id', requireAdmin, async (req, res) => {
     try {
       console.log('Admin updating event:', req.params.id);
-      await updateDoc(doc(db, 'events', req.params.id), { ...req.body, updatedAt: new Date().toISOString() });
+      const eventPayload = {
+        ...req.body,
+        categories: Array.isArray(req.body.categories)
+          ? req.body.categories.map((category: any) => ({
+              ...category,
+              price: Number(String(category.price || 0).replace(/[^\d]/g, '')) || 0,
+            }))
+          : [],
+      };
+      await updateDoc(doc(db, 'events', req.params.id), { ...eventPayload, updatedAt: new Date().toISOString() });
       res.json({ success: true });
     } catch (error) { 
       console.error('Error updating event:', error);
