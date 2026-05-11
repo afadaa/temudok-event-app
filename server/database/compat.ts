@@ -2,23 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore,
-  collection as fbCollection,
-  doc as fbDoc,
-  setDoc as fbSetDoc,
-  updateDoc as fbUpdateDoc,
-  getDocs as fbGetDocs,
-  getDoc as fbGetDoc,
-  deleteDoc as fbDeleteDoc,
-  addDoc as fbAddDoc,
-  query as fbQuery,
-  where as fbWhere,
-  orderBy as fbOrderBy,
-  serverTimestamp as fbServerTimestamp,
-} from 'firebase/firestore';
-import admin from 'firebase-admin';
 import mysql from 'mysql2/promise';
 
 dotenv.config();
@@ -67,7 +50,38 @@ try {
 }
 
 let firestoreDb: any = null;
+let fbCollection: any;
+let fbDoc: any;
+let fbSetDoc: any;
+let fbUpdateDoc: any;
+let fbGetDocs: any;
+let fbGetDoc: any;
+let fbDeleteDoc: any;
+let fbAddDoc: any;
+let fbQuery: any;
+let fbWhere: any;
+let fbOrderBy: any;
+let fbServerTimestamp: any;
+let firebaseAdmin: any;
+
 if (databaseProvider === 'firestore') {
+  const firebaseAppModule = await import('firebase/app');
+  const firestoreModule = await import('firebase/firestore');
+  firebaseAdmin = await import('firebase-admin');
+
+  fbCollection = firestoreModule.collection;
+  fbDoc = firestoreModule.doc;
+  fbSetDoc = firestoreModule.setDoc;
+  fbUpdateDoc = firestoreModule.updateDoc;
+  fbGetDocs = firestoreModule.getDocs;
+  fbGetDoc = firestoreModule.getDoc;
+  fbDeleteDoc = firestoreModule.deleteDoc;
+  fbAddDoc = firestoreModule.addDoc;
+  fbQuery = firestoreModule.query;
+  fbWhere = firestoreModule.where;
+  fbOrderBy = firestoreModule.orderBy;
+  fbServerTimestamp = firestoreModule.serverTimestamp;
+
   const firebaseRuntimeConfig = {
     apiKey: process.env.FIREBASE_API_KEY || firebaseConfig?.apiKey,
     authDomain: process.env.FIREBASE_AUTH_DOMAIN || firebaseConfig?.authDomain,
@@ -78,20 +92,20 @@ if (databaseProvider === 'firestore') {
     firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || firebaseConfig?.firestoreDatabaseId,
   };
 
-  const firebaseApp = initializeApp(firebaseRuntimeConfig);
-  firestoreDb = getFirestore(firebaseApp, firebaseRuntimeConfig.firestoreDatabaseId);
+  const firebaseApp = firebaseAppModule.initializeApp(firebaseRuntimeConfig);
+  firestoreDb = firestoreModule.getFirestore(firebaseApp, firebaseRuntimeConfig.firestoreDatabaseId);
 }
 
-export let adminDb: admin.firestore.Firestore | null = null;
+export let adminDb: any = null;
 if (databaseProvider === 'firestore') {
   try {
     if (process.env.FIREBASE_ADMIN_CREDENTIALS || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
-        admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS) as any) });
+        firebaseAdmin.default.initializeApp({ credential: firebaseAdmin.default.credential.cert(JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS) as any) });
       } else {
-        admin.initializeApp();
+        firebaseAdmin.default.initializeApp();
       }
-      adminDb = admin.firestore();
+      adminDb = firebaseAdmin.default.firestore();
       console.log('Firebase Admin initialized for server-side privileged access');
     } else {
       console.log('Firebase Admin not initialized: no service account credentials found. Server will use client SDK and may be subject to Firestore rules.');
