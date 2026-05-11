@@ -142,7 +142,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
         </div>
         <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 mb-2">Pendaftaran Selesai!</h2>
         <p className="text-slate-500 text-sm font-medium max-w-sm mx-auto">
-          Pembayaran Anda telah diverifikasi. Silakan unduh Kartu Peserta (Format 80x105 mm) di bawah ini.
+          Pembayaran Anda telah diverifikasi. Silakan unduh Kartu Peserta (Format 4x6 cm) di bawah ini.
         </p>
       </div>
 
