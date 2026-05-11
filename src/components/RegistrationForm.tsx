@@ -176,8 +176,8 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Ukuran file maksimal 5MB');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 10MB');
       return;
     }
 
@@ -286,8 +286,8 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
       toast.error('Hanya menerima file JPEG/PNG/PDF');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Ukuran file maksimal 5MB');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 10MB');
       return;
     }
     setBankSelectedFile(file);
@@ -388,6 +388,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                   onChange={(e) => handleChange('email', e.target.value)}
                 />
               </div>
+              <p className="text-[10px] text-amber-600 font-bold ml-1 mt-1">Pastikan email benar, tiket akan dikirim ke alamat ini.</p>
               {errors.email && (
                 <div className="flex items-center gap-1 text-[10px] text-red-500 font-bold ml-1">
                   <AlertCircle size={12} /><span>{errors.email}</span>
@@ -575,7 +576,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                         <Upload className="text-slate-400" size={24} />
                         <div>
                           <p className="text-sm font-bold text-slate-700">Klik untuk unggah Surat Mandat</p>
-                          <p className="text-xs text-slate-500 mt-1">Maksimal 5MB (PDF/JPG/PNG)</p>
+                          <p className="text-xs text-slate-500 mt-1">Maksimal 10MB (PDF/JPG/PNG)</p>
                         </div>
                         <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,image/*" />
                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="mt-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-50 disabled:opacity-50">
