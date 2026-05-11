@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
-import { collection, getDocs, query, where, orderBy, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../config/firebase.ts';
+import { collection, getDocs, query, where, orderBy, doc, addDoc, updateDoc, deleteDoc, db } from '../database/compat.ts';
 
 export class EventController {
   static async getPublicEvents(req: Request, res: Response) {

@@ -84,7 +84,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
         : isPeninjau
           ? await composePeninjauIdCard(photoSrc, data.fullName, data.orderId || '')
           : isUtusan
-            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '')
+            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', data.category)
             : await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
       const filename = `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.png`;
       if (isPanitia) {
@@ -114,7 +114,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
         : isPeninjau
           ? await composePeninjauIdCard(photoSrc, data.fullName, data.orderId || '')
           : isUtusan
-            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '')
+            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', data.category)
             : await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
       const filename = `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.pdf`;
       if (isPanitia) {

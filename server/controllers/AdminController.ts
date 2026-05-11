@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
-import { collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db, adminDb } from '../config/firebase.ts';
+import { collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc, db, adminDb } from '../database/compat.ts';
 import { sendTicketEmail, sendBroadcastEmail } from '../services/MailService.ts';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -8,14 +7,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export class AdminController {
   static async getRegistrations(req: Request, res: Response) {
     try {
-      // @ts-ignore - Using experimental/custom pipeline query
-      const q = (db as any).pipeline()
-        .collection("registrations")
-        // No where clause here to get all, but we use the query structure requested
-        .select((global as any).field("email"), (global as any).field("name"), (global as any).field("eventId"), (global as any).field("status"), (global as any).field("createdAt"))
-        .limit(1000);
-
-      const snapshot = await q.get();
+      const snapshot = await getDocs(query(collection(db, 'registrations'), orderBy('createdAt', 'desc')));
       const docs = snapshot.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data()

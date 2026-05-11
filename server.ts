@@ -3,8 +3,6 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc, updateDoc, getDocs, query, where, orderBy, getDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
@@ -12,120 +10,33 @@ import midtransClient from 'midtrans-client';
 import nodemailer from 'nodemailer';
 import QRCode from 'qrcode';
 import { z } from 'zod';
-import admin from 'firebase-admin';
 
 import apiRoutes from './server/routes/index.ts';
-import { seedDatabase } from './server/services/SeedService.ts';
+import {
+  adminDb,
+  addDoc,
+  collection,
+  databaseProvider,
+  db,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  runMysqlMigrations,
+  seedAppDatabase,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from './server/database/compat.ts';
 
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Firebase Client Setup
-let firebaseConfig: any;
-try {
-  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
-  if (fs.existsSync(configPath)) {
-    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  }
-} catch (e) {
-  console.warn('Could not read firebase-applet-config.json, relying on environment variables');
-}
-
-// Override with .env if present
-const config = {
-  apiKey: process.env.FIREBASE_API_KEY || firebaseConfig?.apiKey,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || firebaseConfig?.authDomain,
-  projectId: process.env.FIREBASE_PROJECT_ID || firebaseConfig?.projectId,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || firebaseConfig?.storageBucket,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || firebaseConfig?.messagingSenderId,
-  appId: process.env.FIREBASE_APP_ID || firebaseConfig?.appId,
-  firestoreDatabaseId: process.env.FIREBASE_DATABASE_ID || firebaseConfig?.firestoreDatabaseId,
-};
-
-// Initialize Firebase App
-const firebaseApp = initializeApp(config);
-const db = getFirestore(firebaseApp, config.firestoreDatabaseId);
-
-// Try to initialize firebase-admin for server-side privileged access if credentials are available
-let adminDb: admin.firestore.Firestore | null = null;
-try {
-  if (process.env.FIREBASE_ADMIN_CREDENTIALS || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
-      // Allow passing the service account JSON as an env var (useful in containers)
-      const credObj = JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS);
-      admin.initializeApp({ credential: admin.credential.cert(credObj as any) });
-    } else {
-      // When GOOGLE_APPLICATION_CREDENTIALS is set to a file path
-      admin.initializeApp();
-    }
-    adminDb = admin.firestore();
-    console.log('Firebase Admin initialized for server-side privileged access');
-  } else {
-    console.log('Firebase Admin not initialized: no service account credentials found. Server will use client SDK and may be subject to Firestore rules.');
-  }
-} catch (err) {
-  console.warn('Failed to initialize firebase-admin:', err);
-  adminDb = null;
-}
-
-// Test connection and Seed Admin
-(async () => {
-  try {
-    console.log(`Testing Firestore connection (Project: ${config.projectId}, DB: ${config.firestoreDatabaseId || '(default)'})...`);
-    await getDocs(query(collection(db, 'registrations'), where('__name__', '==', 'test')));
-    console.log('Firestore connection verified');
-    
-    // Seed Admin User - Only if environment variables are provided
-    const adminUsername = process.env.ADMIN_USERNAME;
-    const plainPassword = process.env.ADMIN_PASSWORD;
-
-    if (adminUsername && plainPassword) {
-      const adminRef = doc(db, 'admins', adminUsername);
-      const adminSnap = await getDoc(adminRef);
-
-      if (!adminSnap.exists()) {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(plainPassword, salt);
-        await setDoc(adminRef, {
-          username: adminUsername,
-          password: hashedPassword,
-          createdAt: new Date().toISOString()
-        });
-        console.log(`Admin user '${adminUsername}' seeded in Firestore.`);
-      }
-    } else {
-      console.warn('ADMIN_USERNAME or ADMIN_PASSWORD not found in .env. Skipping admin seeding.');
-    }
-
-    // Seed Initial Event if none exists
-    const eventsSnapshot = await getDocs(collection(db, 'events'));
-    if (eventsSnapshot.empty) {
-      const defaultEventId = 'muswil-initial-event';
-      const defaultEvent = {
-        title: 'Musyawarah Wilayah IDI Kalimantan Timur 2026',
-        description: 'Musyawarah Wilayah (MUSWIL) IDI Kalimantan Timur merupakan agenda rutin empat tahunan yang bertujuan untuk mengevaluasi program kerja kepengurusan periode sebelumnya serta menyusun rencana strategis dan memilih nakhoda baru untuk masa khidmat berikutnya.',
-        startDate: '2026-05-20T08:00:00.000Z',
-        endDate: '2026-05-22T17:00:00.000Z',
-        location: 'Hotel Gran Senyiur',
-        address: 'Balikpapan, Kalimantan Timur',
-        isActive: true,
-        categories: [
-          { id: 'delegate', name: 'Utusan Cabang (Delegasi Resmi)', price: 1000000 },
-          { id: 'participant', name: 'Anggota Biasa (Peserta)', price: 1250000 },
-          { id: 'guest', name: 'Tamu Undangan / Eksibitor', price: 500000 }
-        ],
-        createdAt: new Date().toISOString()
-      };
-      await setDoc(doc(db, 'events', defaultEventId), defaultEvent);
-      console.log('Initial event seeded in Firestore.');
-    }
-  } catch (err: any) {
-    console.error('Firestore init error:', err.message);
-  }
-})();
 
 const PORT = 3000;
 
@@ -212,6 +123,16 @@ const RegistrationSchema = z.object({
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  try {
+    console.log(`Testing ${databaseProvider} connection...`);
+    await runMysqlMigrations();
+    await getDocs(query(collection(db, 'registrations'), where('__name__', '==', 'test')));
+    console.log(`${databaseProvider} connection verified`);
+    await seedAppDatabase();
+  } catch (err: any) {
+    console.error(`${databaseProvider} init error:`, err.message);
+  }
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -694,8 +615,9 @@ async function startServer() {
         if (!file) return res.status(400).json({ error: 'No file uploaded (expected field "paymentPhoto")' });
 
         const mimetype = (file.mimetype || '').toLowerCase();
-        if (!mimetype.includes('image')) {
-          return res.status(400).json({ error: 'File harus berupa gambar (jpeg/png)' });
+        const isAllowedFile = mimetype.includes('image') || mimetype === 'application/pdf';
+        if (!isAllowedFile) {
+          return res.status(400).json({ error: 'File harus berupa gambar (jpeg/png) atau PDF' });
         }
 
   const fileUrl = `/uploads/${file.filename}`;
@@ -752,7 +674,7 @@ async function startServer() {
         const safeOrderId = String(orderId).replace(/[^a-zA-Z0-9_\-]/g, '_');
 
         // strip data URI prefix if present
-        const matches = String(data).match(/^data:(image\/[a-zA-Z]+);base64,(.+)$/);
+        const matches = String(data).match(/^data:((?:image\/[a-zA-Z]+)|application\/pdf);base64,(.+)$/);
         let mimeType = 'image/jpeg';
         let base64 = String(data);
         if (matches) {
@@ -760,12 +682,12 @@ async function startServer() {
           base64 = matches[2];
         }
 
-        const allowed: Record<string, string> = { 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
-        if (!allowed[mimeType]) return res.status(400).json({ error: 'Unsupported image type' });
+        const allowed: Record<string, string> = { 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'application/pdf': '.pdf' };
+        if (!allowed[mimeType]) return res.status(400).json({ error: 'Unsupported file type' });
 
         const buffer = Buffer.from(base64, 'base64');
-        const maxBytes = 3 * 1024 * 1024; // 3 MB decoded limit
-        if (buffer.length > maxBytes) return res.status(400).json({ error: 'Image too large' });
+        const maxBytes = 5 * 1024 * 1024; // 5 MB decoded limit
+        if (buffer.length > maxBytes) return res.status(400).json({ error: 'File terlalu besar (maksimal 5MB)' });
 
         const ext = allowed[mimeType];
         const finalName = filename ? String(filename).replace(/[^a-zA-Z0-9_.\-]/g, '_') : `payment-${safeOrderId}${ext}`;
@@ -783,9 +705,10 @@ async function startServer() {
           // Reconstruct data URL (if input had prefix use that, otherwise build it)
           const inputData = String(data);
           const dataUrlFull = matches ? inputData : `data:${mimeType};base64,${base64}`;
+          const isPdf = mimeType === 'application/pdf';
 
           // Enforce Firestore rule: photoUrl max ~1,048,576 characters
-          if (dataUrlFull.length > 1048576) {
+          if (!isPdf && dataUrlFull.length > 1048576) {
             // cleanup file to avoid orphan
             try { fs.unlinkSync(outPath); } catch (e) {}
             return res.status(400).json({ error: 'Base64 data too large for Firestore (max 1,048,576 characters). Please compress or resize image.' });
@@ -798,7 +721,7 @@ async function startServer() {
             // the attendee `photoUrl` used for ticket photos). Also store
             // the uploaded file path in `paymentPhotoFile` for admin reference.
             const updatePayload: any = {
-              paymentPhoto: dataUrlFull,
+              paymentPhoto: isPdf ? fileUrl : dataUrlFull,
               paymentPhotoFile: fileUrl,
               updatedAt: new Date().toISOString()
             };
@@ -827,7 +750,7 @@ async function startServer() {
               } catch (partialErr: any) {
                 console.warn('Client SDK update for paymentPhoto failed, attempting to persist paymentPhoto only:', partialErr?.message || partialErr);
                 try {
-                  await updateDoc(docRef, { paymentPhoto: dataUrlFull, updatedAt: new Date().toISOString() });
+                  await updateDoc(docRef, { paymentPhoto: isPdf ? fileUrl : dataUrlFull, updatedAt: new Date().toISOString() });
                 } catch (updateErr: any) {
                   console.error('Firestore update error (client SDK) for paymentPhoto after fallback:', updateErr);
                   try { fs.unlinkSync(outPath); } catch (e) {}
@@ -1024,9 +947,6 @@ async function startServer() {
       console.error('Failed to send email:', err);
     }
   }
-  // Initialize Database & Seeding
-  await seedDatabase();
-
   // API Routes
   app.use('/api', apiRoutes);
 

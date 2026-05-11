@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
-import { collection, query, where, getDocs, deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../config/firebase.ts';
+import { collection, query, where, getDocs, deleteDoc, doc, getDoc, setDoc, updateDoc, db } from '../database/compat.ts';
 import { RegistrationSchema } from '../models/Registration.ts';
 import { getSnap } from '../config/midtrans.ts';
 import { sendTicketEmail } from '../services/MailService.ts';
@@ -18,20 +17,17 @@ export class PaymentController {
           details: parseResult.error.format() 
         });
       }
-      const validatedData = parseResult.data;``
+      const validatedData = parseResult.data;
 
       // Check if email already registered for THIS event
       let existingRef;
       try {
-        // @ts-ignore - Using experimental/custom pipeline query
-        const q = (db as any).pipeline()
-          .collection("registrations")
-          .where((global as any).field("email").equal(validatedData.email))
-          .where((global as any).field("eventId").equal(validatedData.eventId))
-          .select((global as any).field("email"), (global as any).field("eventId"), (global as any).field("status"))
-          .limit(100);
-        
-        existingRef = await q.get();
+        const q = query(
+          collection(db, 'registrations'),
+          where('email', '==', validatedData.email),
+          where('eventId', '==', validatedData.eventId)
+        );
+        existingRef = await getDocs(q);
       } catch (dbError: any) {
         return res.status(500).json({ 
           message: 'Gagal terhubung ke database. Silakan coba beberapa saat lagi.' 
@@ -231,14 +227,8 @@ export class PaymentController {
       const email = (req.query.email as string || '').trim();
       if (!email) return res.status(400).json({ error: 'Email query parameter is required' });
 
-      // @ts-ignore - Using experimental/custom pipeline query
-      const q = (db as any).pipeline()
-        .collection("registrations")
-        .where((global as any).field("email").equal(email))
-        .select((global as any).field("email"), (global as any).field("status"), (global as any).field("amount"), (global as any).field("eventTitle"), (global as any).field("createdAt"))
-        .limit(100);
-
-      const snap = await q.get();
+      const q = query(collection(db, 'registrations'), where('email', '==', email));
+      const snap = await getDocs(q);
       const items = snap.docs.map((d: any) => {
         const data: any = d.data();
         return {

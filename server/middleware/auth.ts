@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebase.ts';
+import { doc, getDoc, db } from '../database/compat.ts';
 import bcrypt from 'bcryptjs';
 
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {

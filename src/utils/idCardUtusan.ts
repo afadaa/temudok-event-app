@@ -64,7 +64,8 @@ const fitText = (
 export async function composeUtusanIdCard(
   photoSrc: string,
   name: string,
-  qrText: string
+  qrText: string,
+  category = 'UTUSAN'
 ) {
   const template = await loadImage(utusanTemplate);
   const photo = photoSrc ? await loadImage(photoSrc).catch(() => null) : null;
@@ -113,10 +114,8 @@ export async function composeUtusanIdCard(
     ctx.restore();
   }
 
-  // Name sits inside the pink band above the built-in UTUSAN label.
+  // Name and registration category sit inside the pink band.
   const nameMaxWidth = Math.round(width * 0.62);
-  const nameBoxTop = Math.round(height * 0.620);
-  const nameBoxHeight = Math.round(height * 0.062);
   const nameText = name.trim().toUpperCase();
   let nameFontSize = Math.round(width * 0.038) - 3;
   const minNameFontSize = Math.round(width * 0.022);
@@ -125,12 +124,24 @@ export async function composeUtusanIdCard(
     nameFontSize -= 1;
     ctx.font = `bold ${nameFontSize}px sans-serif`;
   }
-  const baseline = nameBoxTop + Math.round(nameBoxHeight * 0.58);
+  const nameBaseline = Math.round(height * 0.645);
 
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.font = `bold ${nameFontSize}px sans-serif`;
-  ctx.fillText(nameText, width / 2, baseline, nameMaxWidth);
+  ctx.fillText(nameText, width / 2, nameBaseline, nameMaxWidth);
+
+  const categoryText = (category || 'UTUSAN').trim();
+  const categoryDisplay = categoryText.toUpperCase();
+  let categoryFontSize = Math.round(width * 0.031);
+  const minCategoryFontSize = Math.round(width * 0.018);
+  ctx.font = `${categoryFontSize}px sans-serif`;
+  while (categoryFontSize > minCategoryFontSize && ctx.measureText(categoryDisplay).width > nameMaxWidth) {
+    categoryFontSize -= 1;
+    ctx.font = `${categoryFontSize}px sans-serif`;
+  }
+  ctx.font = `${categoryFontSize}px sans-serif`;
+  ctx.fillText(categoryDisplay, width / 2, Math.round(height * 0.692), nameMaxWidth);
 
   // QR code is intentionally left-aligned to the white QR box in Utusan.png.
   const qrX = Math.round(width * 0.104);

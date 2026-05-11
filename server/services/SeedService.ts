@@ -1,5 +1,4 @@
-import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { db } from '../config/firebase.ts';
+import { collection, doc, getDoc, getDocs, setDoc, db } from '../database/compat.ts';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 

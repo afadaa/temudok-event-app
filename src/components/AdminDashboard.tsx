@@ -863,6 +863,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             <div className="space-y-2">
                               <span className="inline-flex max-w-full px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase leading-snug break-words">{r.category}</span>
                               <div className="text-[12px] font-semibold text-slate-600 leading-snug break-words">{branchName}</div>
+                              <div className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wider ${r.photoUrl ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                                {r.photoUrl ? <CheckCircle2 size={12} /> : <Camera size={12} />}
+                                {r.photoUrl ? 'Foto Terunggah' : 'Foto Belum Ada'}
+                              </div>
                             </div>
                           </td>
                           <td className="px-4 py-4 align-top">

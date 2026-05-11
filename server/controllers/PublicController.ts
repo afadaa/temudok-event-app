@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
-import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../config/firebase.ts';
+import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, addDoc, deleteDoc, serverTimestamp, db } from '../database/compat.ts';
 
 export class PublicController {
   static async getBranches(req: Request, res: Response) {

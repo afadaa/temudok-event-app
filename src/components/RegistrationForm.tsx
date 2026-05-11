@@ -706,9 +706,9 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
               <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <div className="text-xs text-slate-500">Order ID Anda</div>
+                    <div className="text-xs font-bold text-slate-600">Order ID Anda</div>
                     <div className="flex items-center gap-3 mt-1">
-                      <p className="text-sm font-mono font-bold m-0 break-words">{bankModal.orderId}</p>
+                      <p className="text-sm font-mono font-black text-slate-900 m-0 break-all">{bankModal.orderId}</p>
                       <button
                         type="button"
                         onClick={async () => {
@@ -725,12 +725,12 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                             document.body.removeChild(tmp);
                           }
                         }}
-                        className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-black hover:bg-slate-50"
+                        className="px-3 py-1 bg-white border border-slate-300 rounded-lg text-xs font-black text-slate-900 hover:bg-slate-50"
                       >
                         Salin
                       </button>
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-2">Simpan Order ID ini untuk cek status pembayaran di menu <strong>Cek Status</strong>.</div>
+                    <div className="text-[11px] text-slate-600 mt-2">Simpan Order ID ini untuk cek status pembayaran di menu <strong className="text-slate-800">Cek Status</strong>.</div>
                   </div>
                 </div>
               </div>

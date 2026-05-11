@@ -555,9 +555,9 @@ function MainApp() {
                     </div>
 
                     <div className="p-4 bg-white rounded-xl border border-slate-100">
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Simpan Order ID</div>
+                      <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">Simpan Order ID</div>
                       <div className="flex items-center gap-3">
-                        <p className="text-xs font-mono font-bold m-0 break-words flex-1 text-idi-dark">{statusResultData.order_id}</p>
+                        <p className="text-xs font-mono font-black m-0 break-all flex-1 text-slate-950">{statusResultData.order_id}</p>
                         <button
                           type="button"
                           onClick={() => {
