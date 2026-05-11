@@ -55,6 +55,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterBranch, setFilterBranch] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
   const [editingEmailValue, setEditingEmailValue] = useState('');
@@ -329,8 +330,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const filteredRegistrants = registrants.filter(r => {
     const matchSearch = r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || r.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCat = filterCategory === 'all' || r.categoryId === filterCategory;
+    const matchBranch = filterBranch === 'all' || r.branchId === filterBranch;
     const matchStatus = filterStatus === 'all' || r.status === filterStatus;
-    return matchSearch && matchCat && matchStatus;
+    return matchSearch && matchCat && matchBranch && matchStatus;
   });
 
   // Pagination
@@ -338,6 +340,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(filteredRegistrants.length / pageSize));
   const pagedRegistrants = filteredRegistrants.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filterCategory, filterBranch, filterStatus]);
 
   // Image modal
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -435,8 +441,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const uploadPaymentProof = async (registrant: Registrant, file?: File) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Bukti pembayaran harus berupa gambar');
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      toast.error('Bukti pembayaran harus berupa gambar atau PDF');
       return;
     }
 
@@ -727,6 +733,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                 </select>
                 <select 
                   className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  value={filterBranch} onChange={e => setFilterBranch(e.target.value)}
+                >
+                  <option value="all">Semua Cabang</option>
+                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+                <select 
+                  className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
                   value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
                 >
                   <option value="all">Semua Status</option>
@@ -735,19 +748,17 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                 </select>
               </div>
 
-              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-x-auto min-h-[400px]">
+              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden min-h-[400px]">
                 {filteredRegistrants.length > 0 ? (
-                  <table className="w-full text-left max-w-full">
+                  <table className="w-full table-fixed text-left">
                     <thead>
                       <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 whitespace-nowrap">
-                        <th className="px-6 py-4">Bukti</th>
-                        <th className="px-6 py-4">Pendaftar</th>
-                        <th className="px-6 py-4">Email</th>
-                        <th className="px-6 py-4">No. HP</th>
-                        <th className="px-6 py-4">Kategori</th>
-                        <th className="px-6 py-4">Cabang</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Aksi</th>
+                        <th className="w-[11%] px-4 py-4">Bukti</th>
+                        <th className="w-[20%] px-4 py-4">Pendaftar</th>
+                        <th className="w-[24%] px-4 py-4">Kontak</th>
+                        <th className="w-[21%] px-4 py-4">Detail Peserta</th>
+                        <th className="w-[12%] px-4 py-4">Status</th>
+                        <th className="w-[12%] px-4 py-4 text-right">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 text-sm">
@@ -755,16 +766,16 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         const branchName = branches.find(b => b.id === r.branchId)?.name || r.branchId || '-';
                         return (
                         <tr key={r.id}>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4 align-top">
                             <label
                               title={r.paymentPhoto ? 'Ganti bukti pembayaran' : 'Upload bukti pembayaran'}
-                              className={`mb-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 ${paymentUploadLoadingId === r.id ? 'pointer-events-none opacity-60' : ''}`}
+                              className={`mb-2 inline-flex max-w-full cursor-pointer items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 ${paymentUploadLoadingId === r.id ? 'pointer-events-none opacity-60' : ''}`}
                             >
                               {paymentUploadLoadingId === r.id ? <RefreshCw size={12} className="animate-spin" /> : <Upload size={12} />}
                               {r.paymentPhoto ? 'Ganti' : 'Upload'}
                               <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,application/pdf,.pdf"
                                 className="hidden"
                                 disabled={paymentUploadLoadingId === r.id}
                                 onChange={(e) => {
@@ -779,22 +790,29 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                               if (!photoUrl.startsWith('data:') && !photoUrl.startsWith('http') && !photoUrl.startsWith('/')) {
                                 photoUrl = `/uploads/${photoUrl}`;
                               }
+                              const isPdf = photoUrl.toLowerCase().includes('.pdf') || photoUrl.startsWith('data:application/pdf');
                               return (
-                                <button onClick={() => openImage(photoUrl)} className="p-0 border-0 bg-transparent rounded-md overflow-hidden" title="Lihat bukti">
-                                  <img src={photoUrl} alt={`bukti-${r.id}`} className="w-16 h-12 object-cover rounded-md border" />
-                                </button>
+                                isPdf ? (
+                                  <button onClick={() => window.open(photoUrl, '_blank')} className="w-16 h-12 rounded-md border bg-slate-50 text-[10px] font-black text-slate-500" title="Lihat PDF">
+                                    PDF
+                                  </button>
+                                ) : (
+                                  <button onClick={() => openImage(photoUrl)} className="p-0 border-0 bg-transparent rounded-md overflow-hidden" title="Lihat bukti">
+                                    <img src={photoUrl} alt={`bukti-${r.id}`} className="w-16 h-12 object-cover rounded-md border" />
+                                  </button>
+                                )
                               );
                             })() : (
-                              <div className="w-16 h-12 bg-slate-50 rounded-md flex items-center justify-center text-slate-300">—</div>
+                              <div className="w-16 h-12 bg-slate-50 rounded-md flex items-center justify-center text-slate-300">-</div>
                             )}
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-slate-800">{r.fullName}</div>
+                          <td className="px-4 py-4 align-top">
+                            <div className="font-bold text-slate-800 leading-snug break-words">{r.fullName}</div>
                             <div className="text-[11px] text-slate-500">ID: {r.id}</div>
                           </td>
-                          <td className="px-6 py-4 text-[13px] text-slate-600 min-w-[240px]">
+                          <td className="px-4 py-4 align-top text-[13px] text-slate-600">
                             {editingEmailId === r.id ? (
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <input
                                   type="email"
                                   value={editingEmailValue}
@@ -803,7 +821,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                                     if (e.key === 'Enter') updateRegistrantEmail(r);
                                     if (e.key === 'Escape') cancelEditEmail();
                                   }}
-                                  className="w-52 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
+                                  className="w-full min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
                                   autoFocus
                                 />
                                 <button
@@ -825,8 +843,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                                 </button>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2">
-                                <span>{r.email}</span>
+                              <div className="space-y-1">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <span className="break-all">{r.email}</span>
                                 <button
                                   type="button"
                                   title="Edit email peserta"
@@ -835,30 +854,35 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                                 >
                                   <Edit size={14} />
                                 </button>
+                                </div>
+                                <div className="text-[12px] font-semibold text-slate-500">{r.phone || '-'}</div>
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-[13px] text-slate-600">{r.phone}</td>
-                          <td className="px-6 py-4"><span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase">{r.category}</span></td>
-                          <td className="px-6 py-4 font-semibold text-slate-600">{branchName}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded text-[10px] uppercase font-black tracking-widest ${r.status === 'settlement' || r.status === 'capture' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
+                          <td className="px-4 py-4 align-top">
+                            <div className="space-y-2">
+                              <span className="inline-flex max-w-full px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase leading-snug break-words">{r.category}</span>
+                              <div className="text-[12px] font-semibold text-slate-600 leading-snug break-words">{branchName}</div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 align-top">
+                            <div className="flex min-w-0 flex-col items-start gap-2">
+                              <span className={`max-w-full break-words px-2 py-1 rounded text-[10px] uppercase font-black tracking-widest ${r.status === 'settlement' || r.status === 'capture' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
                                 {r.status}
                               </span>
                               {r.status !== 'settlement' && r.status !== 'capture' && (
-                                <button onClick={() => markAsPaid(r.id)} className="text-xs font-black text-white bg-emerald-600 px-3 py-1 rounded-full hover:bg-emerald-700">Tandai Lunas</button>
+                                <button onClick={() => markAsPaid(r.id)} className="max-w-full break-words text-[10px] font-black text-white bg-emerald-600 px-2 py-1 rounded-full hover:bg-emerald-700">Tandai Lunas</button>
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4 align-top">
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 type="button"
                                 title="Kirim ulang e-tiket ke email peserta"
                                 disabled={emailActionLoadingId === r.id || (r.status !== 'settlement' && r.status !== 'capture')}
                                 onClick={() => resendRegistrantEmail(r)}
-                                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-slate-200 px-2 py-2 text-[10px] font-black uppercase leading-tight tracking-widest text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 {emailActionLoadingId === r.id ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />}
                                 Kirim Ulang

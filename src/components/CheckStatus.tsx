@@ -257,11 +257,17 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
                       {/* Preview */}
                       {previewUrl && (
                         <div className="relative mb-2">
-                          <img
-                            src={previewUrl}
-                            alt="preview bukti transfer"
-                            className="w-full h-40 object-cover rounded-xl border border-slate-200"
-                          />
+                          {selectedFile?.type === 'application/pdf' ? (
+                            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs font-bold text-slate-600">
+                              PDF: {selectedFile.name}
+                            </div>
+                          ) : (
+                            <img
+                              src={previewUrl}
+                              alt="preview bukti transfer"
+                              className="w-full h-40 object-cover rounded-xl border border-slate-200"
+                            />
+                          )}
                           <button
                             type="button"
                             onClick={() => { setSelectedFile(null); setPreviewUrl(null); if (fileRef.current) fileRef.current.value = ''; }}
@@ -274,14 +280,14 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
 
                       <input
                         type="file"
-                        accept="image/jpeg,image/png"
+                        accept="image/jpeg,image/png,application/pdf,.pdf"
                         className="hidden"
                         ref={fileRef}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          if (!['image/jpeg','image/png','image/jpg'].includes(file.type)) {
-                            toast.error('Hanya menerima file JPEG/PNG');
+                          if (!['image/jpeg','image/png','image/jpg','application/pdf'].includes(file.type)) {
+                            toast.error('Hanya menerima file JPEG/PNG/PDF');
                             return;
                           }
                           if (file.size > 5 * 1024 * 1024) {
@@ -301,8 +307,8 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
                           className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-8 flex flex-col items-center gap-2 text-slate-400 hover:border-idi-gold hover:text-idi-gold transition-all"
                         >
                           <Upload size={28} />
-                          <span className="text-[11px] font-black uppercase tracking-wider">Pilih Foto Bukti Transfer</span>
-                          <span className="text-[10px] text-slate-400">JPEG / PNG, maks 5MB</span>
+                          <span className="text-[11px] font-black uppercase tracking-wider">Pilih Bukti Transfer</span>
+                          <span className="text-[10px] text-slate-400">JPEG / PNG / PDF, maks 5MB</span>
                         </button>
                       ) : (
                         <div className="flex gap-2">

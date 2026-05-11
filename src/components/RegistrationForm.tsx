@@ -282,8 +282,8 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
   const handleBankFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-      toast.error('Hanya menerima file JPEG/PNG');
+    if (!['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'].includes(file.type)) {
+      toast.error('Hanya menerima file JPEG/PNG/PDF');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -735,10 +735,10 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
               </div>
             )}
             <div className="mb-4 space-y-3">
-              <label className="block text-xs font-bold mb-2 text-idi-dark">Unggah Bukti Pembayaran (JPEG/PNG)</label>
+              <label className="block text-xs font-bold mb-2 text-idi-dark">Unggah Bukti Pembayaran (JPEG/PNG/PDF)</label>
               <input
               type="file"
-              accept="image/jpeg,image/png"
+              accept="image/jpeg,image/png,application/pdf,.pdf"
               ref={bankFileRef}
               onChange={handleBankFileSelect}
               className="hidden"
@@ -749,7 +749,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                 onClick={() => bankFileRef.current?.click()}
                 className="w-full px-4 py-3 bg-white border border-slate-300 text-idi-dark rounded-lg font-bold hover:bg-slate-50"
               >
-                Pilih Gambar
+                Pilih File
               </button>
               <button
                 type="button"
@@ -775,11 +775,17 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
               {bankPreview && (
               <div className="mt-3">
                 <p className="text-xs font-bold text-slate-700 mb-1">Preview:</p>
-                <img
-                src={bankPreview}
-                alt="preview"
-                className="w-40 h-28 object-cover rounded-md border border-slate-300"
-                />
+                {bankSelectedFile?.type === 'application/pdf' ? (
+                  <div className="w-40 rounded-md border border-slate-300 bg-slate-50 p-3 text-xs font-bold text-slate-700">
+                    PDF: {bankSelectedFile.name}
+                  </div>
+                ) : (
+                  <img
+                  src={bankPreview}
+                  alt="preview"
+                  className="w-40 h-28 object-cover rounded-md border border-slate-300"
+                  />
+                )}
               </div>
               )}
             </div>
