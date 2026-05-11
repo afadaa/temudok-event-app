@@ -226,7 +226,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
               {isUploading ? <RefreshCw size={20} className="animate-spin text-idi-gold" /> : <Camera size={20} className="text-idi-gold group-hover:scale-110 transition-transform" />}
               <div className="flex flex-col items-start leading-tight">
                 <span className="text-[11px] font-black text-idi-gold uppercase tracking-wider">Unggah Foto Peserta</span>
-                <span className="text-[9px] font-bold text-idi-gold/70 uppercase">Wajib untuk kartu peserta</span>
+                <span className="text-[9px] font-bold text-idi-gold/70 uppercase">Wajib untuk kartu peserta, ideal ukuran 4x6</span>
               </div>
               <input type="file" className="hidden" accept="image/png, image/jpeg, image/jpg" onChange={handlePhotoUpload} disabled={isUploading} />
             </label>

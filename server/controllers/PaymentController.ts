@@ -7,6 +7,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+function shouldUseMidtransSnap() {
+  return process.env.VITE_USE_MIDTRANS_SNAP === 'true' || process.env.USE_MIDTRANS_SNAP === 'true';
+}
+
 export class PaymentController {
   static async createTransaction(req: Request, res: Response) {
     try {
@@ -118,6 +122,10 @@ export class PaymentController {
         updatedAt: new Date().toISOString(),
       };
       await setDoc(doc(db, 'registrations', orderId), pendingReg);
+
+      if (!shouldUseMidtransSnap()) {
+        return res.json({ orderId, isBankTransfer: true });
+      }
 
       if (!process.env.MIDTRANS_SERVER_KEY || process.env.MIDTRANS_SERVER_KEY === 'MY_MIDTRANS_SERVER_KEY') {
         return res.json({ token: 'DUMMY_TOKEN', orderId, isDummy: true });

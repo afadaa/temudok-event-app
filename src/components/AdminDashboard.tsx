@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Users, Mail, Phone, Calendar, Search, ArrowLeft, Download, RefreshCw, BarChart, CheckCircle2, Clock, MapPin, Tag, Plus, Trash2, Edit, FileDown, Camera, BookOpen, LayoutGrid, X, CheckSquare, Square, Menu, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -61,6 +61,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [editingEmailValue, setEditingEmailValue] = useState('');
   const [emailActionLoadingId, setEmailActionLoadingId] = useState<string | null>(null);
   const [paymentUploadLoadingId, setPaymentUploadLoadingId] = useState<string | null>(null);
+  const [loadingImport, setLoadingImport] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   // Modal State
   const [showBranchModal, setShowBranchModal] = useState(false);
@@ -260,6 +262,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     setEditingEvent(event);
     const startStr = event.startDate || new Date().toISOString();
     const endStr = event.endDate || new Date().toISOString();
+    const currentCategoryIds = new Set(categories.map(c => c.id));
     setIsOneDay(event.startDate?.split('T')[0] === event.endDate?.split('T')[0]);
     setEventData({
       title: event.title,
@@ -269,7 +272,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       location: event.location || '',
       address: event.address || '',
       isActive: event.isActive,
-      categories: event.categories || []
+      categories: (event.categories || []).filter(c => currentCategoryIds.has(c.id))
     });
     setShowEventModal(true);
   };
@@ -281,9 +284,18 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     try {
       const url = editingEvent ? `/api/admin/events/${editingEvent.id}` : '/api/admin/events';
       const method = editingEvent ? 'PUT' : 'POST';
+      const payload = {
+        ...eventData,
+        categories: eventData.categories
+          .filter(category => categories.some(masterCategory => masterCategory.id === category.id))
+          .map(category => ({
+            ...category,
+            price: Number(String(category.price).replace(/[^\d]/g, '')) || 0,
+          })),
+      };
       const res = await fetch(url, {
         method, headers: { ...authHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventData)
+        body: JSON.stringify(payload)
       });
       if (res.ok) { 
         toast.success(editingEvent ? 'Event diperbarui' : 'Event ditambahkan'); 
@@ -519,6 +531,166 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   };
 
+  const downloadImportTemplate = () => {
+    const activeOrFirstEvent = events.find(e => e.isActive) || events[0];
+    const firstCategory = activeOrFirstEvent?.categories?.[0] || categories[0];
+    const firstBranch = branches[0];
+    const sampleCategoryName = firstCategory?.name || 'UTUSAN IDI Cabang Balikpapan';
+
+    const templateRows = [
+      {
+        'Order ID (Opsional)': '',
+        'Nama Lengkap*': 'Dr. Contoh Peserta',
+        'Email*': 'peserta@example.com',
+        'WhatsApp*': '081234567890',
+        'NPA IDI': '123456',
+        'Event ID*': activeOrFirstEvent?.id || 'muswil-initial-event',
+        'Event Title': activeOrFirstEvent?.title || 'Musyawarah Wilayah IDI Kalimantan Timur 2026',
+        'Kategori ID*': firstCategory?.id || 'delegate',
+        'Kategori': sampleCategoryName,
+        'Cabang ID': firstBranch?.id || '',
+        'Cabang IDI': firstBranch?.name || 'IDI Cabang Balikpapan',
+        'Status': 'settlement',
+        'Total Bayar': '1250000',
+        'Kriteria': '',
+        'Tipe Peserta': '',
+        'Komisi': '',
+        'Perhimpunan': '',
+        'MKEK Branch': '',
+        'Bersedia': 'ya',
+      },
+    ];
+
+    const referenceRows = [
+      { 'Tipe': 'EVENT', 'ID': activeOrFirstEvent?.id || '', 'Nama': activeOrFirstEvent?.title || '', 'Harga': '' },
+      ...events.flatMap(event => event.categories.map(category => ({
+        'Tipe': 'KATEGORI EVENT',
+        'ID': category.id,
+        'Nama': `${event.title} - ${category.name}`,
+        'Harga': category.price,
+      }))),
+      ...categories.map(category => ({ 'Tipe': 'KATEGORI GLOBAL', 'ID': category.id, 'Nama': category.name, 'Harga': category.price })),
+      ...branches.map(branch => ({ 'Tipe': 'CABANG', 'ID': branch.id, 'Nama': branch.name, 'Harga': '' })),
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    const templateSheet = XLSX.utils.json_to_sheet(templateRows);
+    templateSheet['!cols'] = [
+      { wch: 28 }, { wch: 28 }, { wch: 28 }, { wch: 18 }, { wch: 14 },
+      { wch: 24 }, { wch: 42 }, { wch: 16 }, { wch: 32 }, { wch: 18 },
+      { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 24 }, { wch: 20 },
+      { wch: 18 }, { wch: 24 }, { wch: 24 }, { wch: 12 },
+    ];
+    const referenceSheet = XLSX.utils.json_to_sheet(referenceRows);
+    referenceSheet['!cols'] = [{ wch: 18 }, { wch: 24 }, { wch: 56 }, { wch: 14 }];
+
+    XLSX.utils.book_append_sheet(workbook, templateSheet, 'Template');
+    XLSX.utils.book_append_sheet(workbook, referenceSheet, 'Referensi');
+    XLSX.writeFile(workbook, `template-import-pendaftaran-${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const resolveCategory = (categoryIdInput: string, categoryNameInput: string, eventId: string) => {
+    const event = events.find(e => e.id === eventId);
+    const eventCategory = event?.categories?.find(c =>
+      c.id.toLowerCase() === categoryIdInput.toLowerCase() ||
+      c.name.toLowerCase() === categoryNameInput.toLowerCase()
+    );
+    const globalCategory = categories.find(c =>
+      c.id.toLowerCase() === categoryIdInput.toLowerCase() ||
+      c.name.toLowerCase() === categoryNameInput.toLowerCase()
+    );
+    const category = eventCategory || globalCategory;
+    return {
+      categoryId: categoryIdInput || category?.id || categoryNameInput,
+      category: categoryNameInput || category?.name || categoryIdInput,
+      amount: category?.price,
+    };
+  };
+
+  const resolveBranchId = (branchIdInput: string, branchNameInput: string) => {
+    if (branchIdInput) return branchIdInput;
+    const branch = branches.find(b => b.name.toLowerCase() === branchNameInput.toLowerCase());
+    return branch?.id || branchNameInput;
+  };
+
+  const handleImportExcel = async (file?: File) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.xlsx') && !file.name.toLowerCase().endsWith('.xls')) {
+      toast.error('File import harus Excel (.xlsx atau .xls)');
+      return;
+    }
+
+    setLoadingImport(true);
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+      const rows = rawRows
+        .map(row => {
+          const eventId = String(row['Event ID*'] || row['Event ID'] || row.eventId || '').trim();
+          const categoryIdInput = String(row['Kategori ID*'] || row['Kategori ID'] || row.categoryId || '').trim();
+          const categoryNameInput = String(row['Kategori'] || row.category || '').trim();
+          const branchIdInput = String(row['Cabang ID'] || row.branchId || '').trim();
+          const branchNameInput = String(row['Cabang IDI'] || row.branchName || '').trim();
+          const resolvedCategory = resolveCategory(categoryIdInput, categoryNameInput, eventId);
+          const amountInput = row['Total Bayar'] || row.amount || resolvedCategory.amount || 0;
+
+          return {
+            orderId: String(row['Order ID (Opsional)'] || row['Order ID'] || row.orderId || '').trim(),
+            fullName: String(row['Nama Lengkap*'] || row['Nama Lengkap'] || row.fullName || '').trim(),
+            email: String(row['Email*'] || row.Email || row.email || '').trim(),
+            phone: String(row['WhatsApp*'] || row.WhatsApp || row.phone || '').trim(),
+            npa: String(row['NPA IDI'] || row.npa || '').trim(),
+            eventId,
+            eventTitle: String(row['Event Title'] || row.eventTitle || events.find(e => e.id === eventId)?.title || '').trim(),
+            categoryId: resolvedCategory.categoryId,
+            category: resolvedCategory.category,
+            branchId: resolveBranchId(branchIdInput, branchNameInput),
+            status: String(row.Status || row.status || 'settlement').trim(),
+            amount: Number(amountInput || 0),
+            kriteria: String(row.Kriteria || row.kriteria || '').trim(),
+            tipePeserta: String(row['Tipe Peserta'] || row.tipePeserta || '').trim(),
+            komisi: String(row.Komisi || row.komisi || '').trim(),
+            perhimpunanName: String(row.Perhimpunan || row.perhimpunanName || '').trim(),
+            mkekBranch: String(row['MKEK Branch'] || row.mkekBranch || '').trim(),
+            bersedia: String(row.Bersedia || row.bersedia || '').trim(),
+          };
+        })
+        .filter(row => row.fullName || row.email || row.phone);
+
+      if (!rows.length) {
+        toast.error('Tidak ada baris valid di file Excel');
+        return;
+      }
+
+      const response = await fetch('/api/admin/registrations/import', {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        toast.error(result.error || 'Gagal import data pendaftaran');
+        return;
+      }
+
+      await fetchRegistrants();
+      const errorCount = result.errors?.length || 0;
+      if (errorCount > 0) {
+        toast.warning(`Import selesai: ${result.imported} berhasil, ${errorCount} gagal`);
+        console.warn('Import errors:', result.errors);
+      } else {
+        toast.success(`Import selesai: ${result.imported} data berhasil disimpan`);
+      }
+    } catch (error) {
+      console.error('Import Excel Error:', error);
+      toast.error('Gagal membaca file Excel');
+    } finally {
+      setLoadingImport(false);
+      if (importFileRef.current) importFileRef.current.value = '';
+    }
+  };
+
   if (!isAuthorized) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -700,6 +872,30 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">Data Pendaftar</h2>
                 <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={downloadImportTemplate}
+                    className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300 hover:bg-slate-50 transition-all"
+                  >
+                    <FileDown size={14} />
+                    Template
+                  </button>
+                  <input
+                    ref={importFileRef}
+                    type="file"
+                    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                    className="hidden"
+                    onChange={(event) => handleImportExcel(event.target.files?.[0])}
+                  />
+                  <button
+                    type="button"
+                    disabled={loadingImport}
+                    onClick={() => importFileRef.current?.click()}
+                    className="flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-xs font-black text-indigo-600 uppercase tracking-widest hover:border-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
+                  >
+                    {loadingImport ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
+                    {loadingImport ? 'Mengimpor...' : 'Import Excel'}
+                  </button>
                   <button 
                     disabled={loadingExport}
                     onClick={handleExport}
@@ -1459,10 +1655,11 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                                     <span className="text-[10px] font-black text-emerald-300">Rp</span>
                                   </div>
                                   <input 
-                                    type="number"
-                                    value={eventCat.price}
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={Number(eventCat.price || 0).toLocaleString('id-ID')}
                                     onChange={(e) => {
-                                      const val = Number(e.target.value);
+                                      const val = Number(e.target.value.replace(/[^\d]/g, '')) || 0;
                                       setEventData(prev => ({
                                         ...prev,
                                         categories: prev.categories.map(c => c.id === masterCat.id ? { ...c, price: val } : c)

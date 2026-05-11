@@ -80,15 +80,31 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
     setLoadingDefs(true);
     Promise.all([
       fetch('/api/branches'),
-      fetch(`/api/events`)
+      fetch(`/api/events`),
+      fetch('/api/categories')
     ])
-      .then(async ([resB, resE]) => {
+      .then(async ([resB, resE, resC]) => {
         if (resB.ok) setBranches(await resB.json());
+        const globalCategories = resC.ok ? await resC.json() : [];
         if (resE.ok) {
           const events: any[] = await resE.json();
           const event = events.find((e: any) => e.id === selectedEventId);
           if (event && event.categories) {
-            const paidCategories = event.categories.filter((c: any) => c.price > 0);
+            const currentMasterIds = new Set(globalCategories.map((category: any) => category.id));
+            const availableEventCategories = currentMasterIds.size > 0
+              ? event.categories.filter((eventCategory: any) => currentMasterIds.has(eventCategory.id))
+              : event.categories;
+            const paidCategories = availableEventCategories
+              .map((eventCategory: any) => {
+                const masterCategory = globalCategories.find((category: any) => category.id === eventCategory.id);
+                const eventPrice = Number(eventCategory.price || 0);
+                return {
+                  ...eventCategory,
+                  name: masterCategory?.name || eventCategory.name,
+                  price: eventPrice > 0 ? eventPrice : Number(masterCategory?.price || 0),
+                };
+              })
+              .filter((c: any) => c.price > 0);
             setCategories(paidCategories);
             if (paidCategories.length > 0) {
               setFormData(p => ({ ...p, category: paidCategories[0].id }));
