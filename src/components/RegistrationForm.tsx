@@ -47,6 +47,8 @@ const MKEK_OPTIONS = [
   { value: 'IDI CABANG BERAU', label: 'IDI CABANG BERAU' }
 ];
 
+const isPanitiaCategory = (nameOrId: string) => String(nameOrId || '').trim().toUpperCase().startsWith('PANITIA');
+
 export function RegistrationForm({ onSuccess, onPending, selectedEventId }: RegistrationFormProps) {
   const [loading, setLoading] = useState(false);
   const [loadingDefs, setLoadingDefs] = useState(true);
@@ -104,7 +106,7 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
                   price: eventPrice > 0 ? eventPrice : Number(masterCategory?.price || 0),
                 };
               })
-              .filter((c: any) => c.price > 0);
+              .filter((c: any) => c.price > 0 || isPanitiaCategory(c.name) || isPanitiaCategory(c.id));
             setCategories(paidCategories);
             if (paidCategories.length > 0) {
               setFormData(p => ({ ...p, category: paidCategories[0].id }));
@@ -266,6 +268,12 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
         return;
       }
 
+      if (data.isAdminApproval) {
+        toast.success('Pendaftaran panitia berhasil. Menunggu approval admin.');
+        onPending({ orderId: data.orderId });
+        return;
+      }
+
       // Instead of opening Midtrans Snap popup, show a local bank-transfer modal
       if (data.token || data.orderId) {
         // show bank modal with orderId and amount
@@ -354,7 +362,10 @@ export function RegistrationForm({ onSuccess, onPending, selectedEventId }: Regi
   }
 
   const selectedCategory = categories.find(c => c.id === formData.category);
-  const priceText = selectedCategory ? `sebesar Rp ${selectedCategory.price.toLocaleString('id-ID')},-` : '';
+  const selectedIsPanitia = selectedCategory ? isPanitiaCategory(selectedCategory.name) || isPanitiaCategory(selectedCategory.id) : false;
+  const priceText = selectedIsPanitia
+    ? 'tanpa pembayaran dan menunggu approval admin'
+    : selectedCategory ? `sebesar Rp ${selectedCategory.price.toLocaleString('id-ID')},-` : '';
 
   const dynamicCabangOptions = branches.map(b => ({ value: b.id, label: b.name }));
 

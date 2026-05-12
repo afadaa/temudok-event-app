@@ -11,6 +11,10 @@ function shouldUseMidtransSnap() {
   return process.env.VITE_USE_MIDTRANS_SNAP === 'true' || process.env.USE_MIDTRANS_SNAP === 'true';
 }
 
+function isPanitiaCategory(categoryNameOrId: string) {
+  return String(categoryNameOrId || '').trim().toUpperCase().startsWith('PANITIA');
+}
+
 export class PaymentController {
   static async createTransaction(req: Request, res: Response) {
     try {
@@ -71,6 +75,28 @@ export class PaymentController {
       const price = cat.price;
       const categoryName = cat.name;
       const eventTitle = event.title;
+
+      if (isPanitiaCategory(categoryName) || isPanitiaCategory(validatedData.category)) {
+        const panitiaReg = {
+          orderId,
+          eventId: validatedData.eventId,
+          eventTitle,
+          fullName: validatedData.fullName,
+          email: validatedData.email,
+          phone: validatedData.phone,
+          npa: validatedData.npa || '',
+          category: categoryName,
+          categoryId: validatedData.category,
+          branchId: validatedData.branchId || '',
+          status: 'pending',
+          amount: 0,
+          paymentVerified: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await setDoc(doc(db, 'registrations', orderId), panitiaReg);
+        return res.json({ orderId, isAdminApproval: true });
+      }
 
       if (price === 0) {
         const regData = {

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Stethoscope, Calendar, MapPin, Users, CheckCircle2, ChevronRight, X, Mail, Phone, CreditCard, Search, ChevronLeft, RefreshCw, Menu, X as XIcon, Upload, ImageIcon } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { RegistrationForm } from './components/RegistrationForm';
+import { PanitiaRegistrationForm } from './components/PanitiaRegistrationForm';
 import { CheckStatus } from './components/CheckStatus';
 import { TicketDownload } from './components/TicketDownload';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -60,7 +61,7 @@ function MainApp() {
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [view, setView] = useState<'registration' | 'status'>('registration');
+  const [view, setView] = useState<'registration' | 'status' | 'panitia'>('registration');
   const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string, photoUrl?: string, eventTitle?: string } | null>(null);
   const [ticketFromStatusCheck, setTicketFromStatusCheck] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
@@ -102,10 +103,13 @@ function MainApp() {
     setCurrentEventIdx((prev) => (prev - 1 + events.length) % events.length);
   };
 
-  const openForm = (v: 'registration' | 'status') => {
+  const openForm = (v: 'registration' | 'status' | 'panitia') => {
     setView(v);
     setShowForm(true);
     setPendingOrderId(undefined);
+    setIsSuccess(false);
+    setRegData(null);
+    setQrCodeUrl('');
   };
 
   const handleSuccess = async (data: { fullName: string, email: string, category: string, orderId?: string, photoUrl?: string }) => {
@@ -260,6 +264,7 @@ function MainApp() {
             <a href="#" className="text-idi-accent border-b border-idi-accent pb-1 uppercase">Beranda</a>
             <button onClick={() => openForm('status')} className="hover:text-idi-accent transition-colors uppercase">Cek Status</button>
             <button onClick={() => setShowAgenda(true)} className="hover:text-idi-accent transition-colors uppercase">Agenda</button>
+            <button onClick={() => openForm('panitia')} className="hover:text-idi-accent transition-colors uppercase">Panitia</button>
             <a href="https://maps.app.goo.gl/3JXD2LiUgcdiua7K6" target="_blank" rel="noreferrer" className="hover:text-idi-accent transition-colors uppercase">Lokasi</a>
           </div>
 
@@ -297,6 +302,7 @@ function MainApp() {
                 <a href="#" onClick={() => setMobileMenuOpen(false)} className="text-idi-accent">Beranda</a>
                 <button onClick={() => { setMobileMenuOpen(false); openForm('status'); }} className="text-left">Cek Status</button>
                 <button onClick={() => { setMobileMenuOpen(false); setShowAgenda(true); }} className="text-left">Agenda</button>
+                <button onClick={() => { setMobileMenuOpen(false); openForm('panitia'); }} className="text-left">Panitia</button>
                 <a href="https://maps.app.goo.gl/3JXD2LiUgcdiua7K6" target="_blank" rel="noreferrer" onClick={() => setMobileMenuOpen(false)} className="text-left">Lokasi</a>
                 <button onClick={() => { setMobileMenuOpen(false); openForm('registration'); }} className="mt-4 bg-idi-gold text-idi-dark px-4 py-3 rounded-full font-black">Pendaftaran</button>
               </nav>
@@ -466,6 +472,18 @@ function MainApp() {
                     ) : (
                       regData && <TicketDownload data={regData} qrCodeUrl={qrCodeUrl} allowPhotoUpload={!ticketFromStatusCheck} />
                     )
+                  ) : view === 'panitia' ? (
+                    <>
+                      <div className="mb-10 text-center">
+                        <h2 className="text-2xl font-black font-serif uppercase tracking-tight text-idi-dark mb-2">Form Panitia</h2>
+                        <div className="text-[10px] font-black text-idi-gold uppercase mb-4 tracking-[0.4em]">{activeEvent.title}</div>
+                        <div className="w-12 h-1 bg-idi-gold mx-auto rounded-full"></div>
+                      </div>
+                      <PanitiaRegistrationForm
+                        selectedEventId={activeEvent.id}
+                        onPending={handlePending}
+                      />
+                    </>
                   ) : (
                     <CheckStatus 
                       onBack={() => setShowForm(false)} 

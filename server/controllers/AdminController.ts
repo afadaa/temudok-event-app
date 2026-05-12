@@ -1,8 +1,9 @@
 import type { Request, Response } from 'express';
 import { collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc, db, adminDb } from '../database/compat.ts';
-import { sendTicketEmail, sendBroadcastEmail } from '../services/MailService.ts';
+import { sendTicketEmail, sendBroadcastEmail, sendPanitiaApprovalEmail } from '../services/MailService.ts';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isPanitiaCategory = (categoryNameOrId: string) => String(categoryNameOrId || '').trim().toUpperCase().startsWith('PANITIA');
 
 export class AdminController {
   static async getRegistrations(req: Request, res: Response) {
@@ -62,7 +63,7 @@ export class AdminController {
         // attempt to send ticket email (non-blocking for response)
         try {
           const data = snap.data();
-          await sendTicketEmail({
+          const payload = {
             order_id: orderId,
             customer_details: {
               first_name: data.fullName,
@@ -72,7 +73,12 @@ export class AdminController {
             custom_field1: data.fullName,
             custom_field2: data.category,
             custom_field3: data.eventTitle
-          });
+          };
+          if (isPanitiaCategory(data.category) || isPanitiaCategory(data.categoryId)) {
+            await sendPanitiaApprovalEmail(payload);
+          } else {
+            await sendTicketEmail(payload);
+          }
         } catch (emailErr) {
           console.error('Failed to send ticket email after admin mark-paid (adminDb):', emailErr);
         }
@@ -80,6 +86,9 @@ export class AdminController {
         // broadcast to event participants or related list (non-blocking)
         try {
           const data = snap.data();
+          if (isPanitiaCategory(data.category) || isPanitiaCategory(data.categoryId)) {
+            return res.json({ success: true });
+          }
           // Example: send a short broadcast only to the single recipient to confirm
           // You can expand this to query more recipients for the event if needed
           const subject = `Konfirmasi Pembayaran - ${data.eventTitle || ''}`;
@@ -100,7 +109,7 @@ export class AdminController {
       // attempt to send ticket email
       try {
         const data = docSnap.data();
-        await sendTicketEmail({
+        const payload = {
           order_id: orderId,
           customer_details: {
             first_name: data.fullName,
@@ -110,7 +119,12 @@ export class AdminController {
           custom_field1: data.fullName,
           custom_field2: data.category,
           custom_field3: data.eventTitle
-        });
+        };
+        if (isPanitiaCategory(data.category) || isPanitiaCategory(data.categoryId)) {
+          await sendPanitiaApprovalEmail(payload);
+        } else {
+          await sendTicketEmail(payload);
+        }
       } catch (emailErr) {
         console.error('Failed to send ticket email after admin mark-paid:', emailErr);
       }
@@ -118,6 +132,9 @@ export class AdminController {
       // send a small broadcast/confirmation to the registrant (non-blocking)
       try {
         const data = docSnap.data();
+        if (isPanitiaCategory(data.category) || isPanitiaCategory(data.categoryId)) {
+          return res.json({ success: true });
+        }
         const subject = `Konfirmasi Pembayaran - ${data.eventTitle || ''}`;
         const html = `<p>Halo ${data.fullName},</p><p>Pembayaran untuk order <strong>${orderId}</strong> telah dikonfirmasi oleh admin. E-Tiket telah dikirim ke email Anda.</p>`;
         sendBroadcastEmail({ emails: [data.email], subject, html }).catch(err => console.error('Broadcast error:', err));

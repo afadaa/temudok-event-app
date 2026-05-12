@@ -55,6 +55,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterRegistrantType, setFilterRegistrantType] = useState<string>('all');
   const [filterBranch, setFilterBranch] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
@@ -341,10 +342,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const filteredRegistrants = registrants.filter(r => {
     const matchSearch = r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || r.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const isPanitia = String(r.category || '').trim().toUpperCase().startsWith('PANITIA') || String(r.categoryId || '').trim().toUpperCase().startsWith('PANITIA');
+    const matchRegistrantType = filterRegistrantType === 'all' || (filterRegistrantType === 'panitia' ? isPanitia : !isPanitia);
     const matchCat = filterCategory === 'all' || r.categoryId === filterCategory;
     const matchBranch = filterBranch === 'all' || r.branchId === filterBranch;
     const matchStatus = filterStatus === 'all' || r.status === filterStatus;
-    return matchSearch && matchCat && matchBranch && matchStatus;
+    return matchSearch && matchRegistrantType && matchCat && matchBranch && matchStatus;
   });
 
   // Pagination
@@ -355,7 +358,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, filterCategory, filterBranch, filterStatus]);
+  }, [searchTerm, filterRegistrantType, filterCategory, filterBranch, filterStatus]);
 
   // Image modal
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -920,6 +923,15 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
+                <select
+                  className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  value={filterRegistrantType}
+                  onChange={e => setFilterRegistrantType(e.target.value)}
+                >
+                  <option value="all">Semua Data</option>
+                  <option value="delegasi">Delegasi / Utusan</option>
+                  <option value="panitia">Panitia</option>
+                </select>
                 <select 
                   className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
                   value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
@@ -960,6 +972,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     <tbody className="divide-y divide-slate-50 text-sm">
                       {pagedRegistrants.map(r => {
                         const branchName = branches.find(b => b.id === r.branchId)?.name || r.branchId || '-';
+                        const isPanitia = String(r.category || '').trim().toUpperCase().startsWith('PANITIA');
                         return (
                         <tr key={r.id}>
                           <td className="px-4 py-4 align-top">
@@ -1071,7 +1084,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                                 {r.status}
                               </span>
                               {r.status !== 'settlement' && r.status !== 'capture' && (
-                                <button onClick={() => markAsPaid(r.id)} className="max-w-full break-words text-[10px] font-black text-white bg-emerald-600 px-2 py-1 rounded-full hover:bg-emerald-700">Tandai Lunas</button>
+                                <button onClick={() => markAsPaid(r.id)} className="max-w-full break-words text-[10px] font-black text-white bg-emerald-600 px-2 py-1 rounded-full hover:bg-emerald-700">{isPanitia ? 'Approve' : 'Tandai Lunas'}</button>
                               )}
                             </div>
                           </td>
