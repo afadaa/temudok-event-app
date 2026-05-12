@@ -15,6 +15,17 @@ function isPanitiaCategory(categoryNameOrId: string) {
   return String(categoryNameOrId || '').trim().toUpperCase().startsWith('PANITIA');
 }
 
+async function getBranchName(branchId?: string) {
+  if (!branchId) return '';
+  try {
+    const branchSnap = await getDoc(doc(db, 'branches', branchId));
+    if (branchSnap.exists()) return branchSnap.data()?.name || branchId;
+  } catch (error) {
+    console.warn('Branch lookup warn:', error);
+  }
+  return branchId;
+}
+
 export class PaymentController {
   static async createTransaction(req: Request, res: Response) {
     try {
@@ -211,6 +222,16 @@ export class PaymentController {
       }
 
       const regData = docSnap.data();
+      const branchName = await getBranchName(regData.branchId);
+      const commonStatusFields = {
+        order_id: orderId,
+        custom_field1: regData.fullName,
+        custom_field2: regData.category,
+        custom_field3: regData.eventTitle,
+        branchId: regData.branchId || '',
+        branchName,
+        photoUrl: regData.photoUrl || '',
+      };
 
       if (regData.amount === 0 || !process.env.MIDTRANS_SERVER_KEY || process.env.MIDTRANS_SERVER_KEY === 'MY_MIDTRANS_SERVER_KEY') {
         return res.json({ 
@@ -218,10 +239,7 @@ export class PaymentController {
           gross_amount: regData.amount,
           transaction_time: regData.createdAt,
           payment_type: 'free/dummy',
-          order_id: orderId,
-          custom_field1: regData.fullName,
-          custom_field2: regData.category,
-          photoUrl: regData.photoUrl || ''
+          ...commonStatusFields,
         });
       }
 
@@ -238,17 +256,14 @@ export class PaymentController {
           ...statusResponse,
           gross_amount: regData.amount,
           transaction_time: regData.createdAt,
-          photoUrl: regData.photoUrl || ''
+          ...commonStatusFields,
         });
       } catch (midtransError: any) {
         return res.json({ 
           transaction_status: regData.status,
           gross_amount: regData.amount,
           transaction_time: regData.createdAt,
-          order_id: orderId,
-          custom_field1: regData.fullName,
-          custom_field2: regData.category,
-          photoUrl: regData.photoUrl || ''
+          ...commonStatusFields,
         });
       }
     } catch (error) {

@@ -193,7 +193,10 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
                       fullName: statusData.custom_field1 || 'Peserta',
                       email: '', // Not returned by status API usually in notification logic context
                       category: statusData.custom_field2 || 'delegate',
-                      orderId: statusData.order_id
+                      orderId: statusData.order_id,
+                      photoUrl: statusData.photoUrl,
+                      branchName: statusData.branchName,
+                      branchId: statusData.branchId,
                     }} 
                     qrCodeUrl={qrCodeUrl} 
                  />

@@ -823,6 +823,18 @@ async function startServer() {
     }
     return '';
   }
+
+  async function getBranchName(branchId?: string) {
+    if (!branchId) return '';
+    try {
+      const branchSnap = await getDoc(doc(db, 'branches', branchId));
+      if (branchSnap.exists()) return branchSnap.data()?.name || branchId;
+    } catch (error) {
+      console.warn('Branch lookup warn:', error);
+    }
+    return branchId;
+  }
+
   // API: Get Payment Status
   app.get('/api/payment-status/by-email', async (req, res) => {
     try {
@@ -841,6 +853,7 @@ async function startServer() {
           createdAt: data.createdAt,
           fullName: data.fullName,
           category: data.category,
+          branchId: data.branchId || '',
         };
       });
       return res.status(200).json({ results: items });
@@ -861,17 +874,31 @@ async function startServer() {
       }
 
       const regData = docSnap.data();
-      const photoUrl = getPaymentPhotoUrl(orderId); // ✅ derive dari file, bukan Firestore
+      const branchName = await getBranchName(regData.branchId);
+      const commonStatusFields = {
+        order_id: orderId,
+        custom_field1: regData.fullName,
+        custom_field2: regData.category,
+        custom_field3: regData.eventTitle,
+        branchId: regData.branchId || '',
+        branchName,
+        photoUrl: regData.photoUrl || getPaymentPhotoUrl(orderId),
+      };
+      const photoUrl = regData.photoUrl || getPaymentPhotoUrl(orderId);
 
       if (regData.amount === 0 || !process.env.MIDTRANS_SERVER_KEY || process.env.MIDTRANS_SERVER_KEY === 'MY_MIDTRANS_SERVER_KEY') {
         return res.json({ 
           transaction_status: regData.status,
           gross_amount: regData.amount,
           transaction_time: regData.createdAt,
+          ...commonStatusFields,
           payment_type: 'free/dummy',
           order_id: orderId,
           custom_field1: regData.fullName,
           custom_field2: regData.category,
+          custom_field3: regData.eventTitle,
+          branchId: regData.branchId || '',
+          branchName,
           photoUrl, // ✅
         });
       }
@@ -885,6 +912,7 @@ async function startServer() {
         });
         return res.json({
           ...statusResponse,
+          ...commonStatusFields,
           gross_amount: regData.amount,
           transaction_time: regData.createdAt,
           photoUrl, // ✅
@@ -895,6 +923,7 @@ async function startServer() {
           transaction_status: regData.status,
           gross_amount: regData.amount,
           transaction_time: regData.createdAt,
+          ...commonStatusFields,
           order_id: orderId,
           custom_field1: regData.fullName,
           custom_field2: regData.category,
@@ -1346,4 +1375,5 @@ process.nextTick(() => {}); // keep stack position stable
 
 // Exported middleware cannot be directly registered outside startServer(), but we will
 // add a simple global handler by patching app inside startServer in future if needed.
+
 

@@ -62,7 +62,7 @@ function MainApp() {
   const [showForm, setShowForm] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [view, setView] = useState<'registration' | 'status' | 'panitia'>('registration');
-  const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string, photoUrl?: string, eventTitle?: string } | null>(null);
+  const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string, photoUrl?: string, eventTitle?: string, branchName?: string, branchId?: string } | null>(null);
   const [ticketFromStatusCheck, setTicketFromStatusCheck] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [pendingOrderId, setPendingOrderId] = useState<string | undefined>(undefined);
@@ -147,7 +147,9 @@ function MainApp() {
         category: data.custom_field2 || 'Peserta',
         orderId: data.order_id,
         photoUrl: data.photoUrl,
-        eventTitle: eventTitle
+        eventTitle: eventTitle,
+        branchName: data.branchName,
+        branchId: data.branchId,
       });
       setTicketFromStatusCheck(true);
 

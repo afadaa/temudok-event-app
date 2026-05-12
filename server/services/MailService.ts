@@ -115,7 +115,7 @@ export async function sendPanitiaApprovalEmail(data: any) {
         </div>
         <p>Halo <strong>${name}</strong>,</p>
         <p>Data Anda telah divalidasi oleh admin sebagai <strong>${category}</strong> untuk kegiatan <strong>${eventTitle}</strong>.</p>
-        <p>Silakan buka menu <strong>Panitia</strong> pada website, masukkan email yang sama, lalu unggah foto peserta ukuran ideal 4x6 untuk mencetak kartu Panitia.</p>
+        <p>Silakan buka menu <strong>Panitia</strong> pada website dan masukkan email yang sama untuk mencetak kartu Panitia.</p>
         <div style="background-color: #f8fafc; padding: 16px; border-radius: 10px; margin: 24px 0;">
           <p style="margin: 0; color: #475569; font-size: 13px;">ID Registrasi</p>
           <p style="margin: 6px 0 0; color: #0f172a; font-family: monospace; font-size: 16px; font-weight: bold;">${orderId}</p>

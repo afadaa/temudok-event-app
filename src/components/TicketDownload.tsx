@@ -14,6 +14,8 @@ interface TicketDownloadProps {
     orderId?: string;
     photoUrl?: string;
     eventTitle?: string;
+    branchName?: string;
+    branchId?: string;
   };
   qrCodeUrl: string;
   allowPhotoUpload?: boolean;
@@ -29,7 +31,11 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
   const isUtusan = normalizedCategory.startsWith('UTUSAN');
   const isPeninjau = normalizedCategory.startsWith('PENINJAU');
   const isPanitia = normalizedCategory.startsWith('PANITIA');
+  const usesUtusanTemplate = !isPeninjau && !isPanitia;
   const requiresPhoto = !isPanitia;
+  const utusanCategoryLabel = isUtusan && (data.branchName || data.branchId)
+    ? `UTUSAN ${data.branchName || data.branchId}`
+    : data.category;
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,15 +89,15 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
         ? await composePanitiaIdCard(data.fullName)
         : isPeninjau
           ? await composePeninjauIdCard(photoSrc, data.fullName, data.orderId || '')
-          : isUtusan
-            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', data.category)
+          : usesUtusanTemplate
+            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', utusanCategoryLabel)
             : await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
       const filename = `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.png`;
       if (isPanitia) {
         downloadPanitiaCanvasAsPng(canvas, filename);
       } else if (isPeninjau) {
         downloadPeninjauCanvasAsPng(canvas, filename);
-      } else if (isUtusan) {
+      } else if (usesUtusanTemplate) {
         downloadUtusanCanvasAsPng(canvas, filename);
       } else {
         downloadCanvasAsPng(canvas, filename);
@@ -113,15 +119,15 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
         ? await composePanitiaIdCard(data.fullName)
         : isPeninjau
           ? await composePeninjauIdCard(photoSrc, data.fullName, data.orderId || '')
-          : isUtusan
-            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', data.category)
+          : usesUtusanTemplate
+            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', utusanCategoryLabel)
             : await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
       const filename = `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.pdf`;
       if (isPanitia) {
         downloadPanitiaCanvasAsPdf(canvas, filename);
       } else if (isPeninjau) {
         downloadPeninjauCanvasAsPdf(canvas, filename);
-      } else if (isUtusan) {
+      } else if (usesUtusanTemplate) {
         downloadUtusanCanvasAsPdf(canvas, filename);
       } else {
         downloadCanvasAsPdf(canvas, filename);

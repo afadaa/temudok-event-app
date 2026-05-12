@@ -325,7 +325,8 @@ export async function composeIdCard(
   const nameMaxWidth = Math.round(width * 0.74);
   const fittedName   = fitTextLines(ctx, name, nameMaxWidth, 3, nameFontSize, Math.round(width * 0.024));
   const nameLineH    = Math.round(fittedName.fontSize * 1.12);
-  const nameStartY   = nameTop + Math.round((nameBlockH - (fittedName.lines.length - 1) * nameLineH) / 2);
+  const singleLineYOffset = fittedName.lines.length === 1 ? Math.round(contentH * 0.018) : 0;
+  const nameStartY   = nameTop + Math.round((nameBlockH - (fittedName.lines.length - 1) * nameLineH) / 2) + singleLineYOffset;
   ctx.fillStyle  = '#0f172a';
   ctx.textAlign  = 'center';
   ctx.font       = `bold ${fittedName.fontSize}px sans-serif`;
