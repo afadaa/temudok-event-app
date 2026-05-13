@@ -87,7 +87,8 @@ const storage = multer.diskStorage({
     const orderId = req.body.orderId || req.body.order_id || 'unknown';
     // Sanitize orderId untuk nama file (hapus karakter tidak valid)
     const safeOrderId = orderId.replace(/[^a-zA-Z0-9_\-]/g, '_');
-    cb(null, `payment-${safeOrderId}${path.extname(file.originalname)}`);
+    const prefix = file.fieldname === 'photo' ? 'participant' : 'payment';
+    cb(null, `${prefix}-${safeOrderId}${path.extname(file.originalname)}`);
   }
 });
 
@@ -961,6 +962,53 @@ async function startServer() {
     } catch (error) {
       console.error('Update Photo Error:', error);
       res.status(500).json({ error: 'Gagal mengunggah foto' });
+    }
+  });
+
+  app.post('/api/admin/registrations/:orderId/photo', requireAdmin, upload.single('photo'), async (req, res) => {
+    const uploadedFile = req.file;
+    try {
+      const orderId = String(req.params.orderId || req.body.orderId || '').trim();
+      if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+      if (!uploadedFile) return res.status(400).json({ error: 'No file uploaded (expected field "photo")' });
+
+      const mimetype = (uploadedFile.mimetype || '').toLowerCase();
+      if (!mimetype.startsWith('image/')) {
+        try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', uploadedFile.filename)); } catch (e) {}
+        return res.status(400).json({ error: 'Foto peserta harus berupa gambar' });
+      }
+
+      const fileUrl = `/uploads/${uploadedFile.filename}`;
+      const payload = {
+        photoUrl: fileUrl,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (adminDb) {
+        const adminDocRef = adminDb.collection('registrations').doc(orderId);
+        const adminSnap = await adminDocRef.get();
+        if (!adminSnap.exists) {
+          try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', uploadedFile.filename)); } catch (e) {}
+          return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+        }
+        await adminDocRef.update(payload);
+      } else {
+        const docRef = doc(db, 'registrations', orderId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+          try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', uploadedFile.filename)); } catch (e) {}
+          return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+        }
+        await updateDoc(docRef, payload);
+      }
+
+      res.json({ success: true, photoUrl: fileUrl });
+    } catch (error) {
+      if (uploadedFile) {
+        try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', uploadedFile.filename)); } catch (e) {}
+      }
+      console.error('Admin Participant Photo Upload Error:', error);
+      res.status(500).json({ error: 'Gagal mengunggah foto peserta' });
     }
   });
 

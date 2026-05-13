@@ -87,6 +87,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [editingEmailValue, setEditingEmailValue] = useState('');
   const [emailActionLoadingId, setEmailActionLoadingId] = useState<string | null>(null);
   const [paymentUploadLoadingId, setPaymentUploadLoadingId] = useState<string | null>(null);
+  const [participantPhotoUploadLoadingId, setParticipantPhotoUploadLoadingId] = useState<string | null>(null);
   const [loadingImport, setLoadingImport] = useState(false);
   const [selectedRegistrantIds, setSelectedRegistrantIds] = useState<string[]>([]);
   const [loadingCardsPdf, setLoadingCardsPdf] = useState(false);
@@ -644,6 +645,48 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       toast.error('Terjadi kesalahan saat mengunggah bukti pembayaran');
     } finally {
       setPaymentUploadLoadingId(null);
+    }
+  };
+
+  const normalizeMediaUrl = (url: string) => {
+    if (url.startsWith('data:') || url.startsWith('http') || url.startsWith('/')) return url;
+    return `/uploads/${url}`;
+  };
+
+  const uploadParticipantPhoto = async (registrant: Registrant, file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Foto peserta harus berupa gambar');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('orderId', registrant.id);
+    formData.append('photo', file);
+
+    setParticipantPhotoUploadLoadingId(registrant.id);
+    try {
+      const res = await fetch(`/api/admin/registrations/${encodeURIComponent(registrant.id)}/photo`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: formData
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(data.error || 'Gagal mengunggah foto peserta');
+        return;
+      }
+
+      const photoUrl = data.photoUrl || data.fileUrl;
+      if (photoUrl) {
+        setRegistrants(prev => prev.map(item => item.id === registrant.id ? { ...item, photoUrl } : item));
+      }
+      toast.success('Foto peserta berhasil diunggah');
+    } catch (e) {
+      toast.error('Terjadi kesalahan saat mengunggah foto peserta');
+    } finally {
+      setParticipantPhotoUploadLoadingId(null);
     }
   };
 
@@ -1287,10 +1330,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             </label>
                             {r.paymentPhoto ? (() => {
                               // support: data URLs (base64), absolute URLs, or stored filename
-                              let photoUrl = r.paymentPhoto;
-                              if (!photoUrl.startsWith('data:') && !photoUrl.startsWith('http') && !photoUrl.startsWith('/')) {
-                                photoUrl = `/uploads/${photoUrl}`;
-                              }
+                              const photoUrl = normalizeMediaUrl(r.paymentPhoto);
                               const isPdf = photoUrl.toLowerCase().includes('.pdf') || photoUrl.startsWith('data:application/pdf');
                               return (
                                 isPdf ? (
@@ -1382,6 +1422,39 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                           </td>
                           <td className="px-4 py-4 align-top">
                             <div className="flex flex-col items-stretch justify-end gap-2">
+                              <div className="flex w-full items-center justify-end gap-2">
+                                {r.photoUrl ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openImage(normalizeMediaUrl(r.photoUrl!))}
+                                    className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                                    title="Lihat foto peserta"
+                                  >
+                                    <img src={normalizeMediaUrl(r.photoUrl)} alt={`foto-${r.id}`} className="h-full w-full object-cover" />
+                                  </button>
+                                ) : (
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-300">
+                                    <Camera size={16} />
+                                  </div>
+                                )}
+                                <label
+                                  title={r.photoUrl ? 'Ganti foto peserta' : 'Upload foto peserta'}
+                                  className={`inline-flex min-h-10 flex-1 cursor-pointer items-center justify-center gap-1 rounded-full border border-slate-200 px-2 py-2 text-[10px] font-black uppercase leading-tight tracking-widest text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 ${participantPhotoUploadLoadingId === r.id ? 'pointer-events-none opacity-60' : ''}`}
+                                >
+                                  {participantPhotoUploadLoadingId === r.id ? <RefreshCw size={13} className="animate-spin" /> : <Camera size={13} />}
+                                  {r.photoUrl ? 'Ganti Foto' : 'Upload Foto'}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    disabled={participantPhotoUploadLoadingId === r.id}
+                                    onChange={(e) => {
+                                      uploadParticipantPhoto(r, e.target.files?.[0]);
+                                      e.currentTarget.value = '';
+                                    }}
+                                  />
+                                </label>
+                              </div>
                               <button
                                 type="button"
                                 title="Kirim ulang e-tiket ke email peserta"
