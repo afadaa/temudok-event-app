@@ -150,6 +150,37 @@ export class AdminController {
     }
   }
 
+  static async cancelRegistration(req: Request, res: Response) {
+    try {
+      const { orderId } = req.body;
+      if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+
+      const payload = {
+        status: 'cancel',
+        paymentVerified: false,
+        cancelledAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (adminDb) {
+        const ref = adminDb.collection('registrations').doc(orderId);
+        const snap = await ref.get();
+        if (!snap.exists) return res.status(404).json({ error: 'Registration not found' });
+        await ref.update(payload);
+      } else {
+        const docRef = doc(db, 'registrations', orderId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) return res.status(404).json({ error: 'Registration not found' });
+        await updateDoc(docRef, payload);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('cancelRegistration Error:', error);
+      res.status(500).json({ error: 'Gagal membatalkan pendaftaran' });
+    }
+  }
+
   static async getGuestbook(req: Request, res: Response) {
     try {
       const q = query(

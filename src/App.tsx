@@ -62,7 +62,7 @@ function MainApp() {
   const [showForm, setShowForm] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [view, setView] = useState<'registration' | 'status' | 'panitia'>('registration');
-  const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string, photoUrl?: string, eventTitle?: string, branchName?: string, branchId?: string } | null>(null);
+  const [regData, setRegData] = useState<{ fullName: string, email: string, category: string, orderId?: string, photoUrl?: string, eventTitle?: string, branchName?: string, branchId?: string, kriteria?: string } | null>(null);
   const [ticketFromStatusCheck, setTicketFromStatusCheck] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [pendingOrderId, setPendingOrderId] = useState<string | undefined>(undefined);
@@ -150,6 +150,7 @@ function MainApp() {
         eventTitle: eventTitle,
         branchName: data.branchName,
         branchId: data.branchId,
+        kriteria: data.kriteria,
       });
       setTicketFromStatusCheck(true);
 

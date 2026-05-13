@@ -230,6 +230,8 @@ export class PaymentController {
         custom_field3: regData.eventTitle,
         branchId: regData.branchId || '',
         branchName,
+        kriteria: regData.kriteria || '',
+        tipePeserta: regData.tipePeserta || '',
         photoUrl: regData.photoUrl || '',
       };
 

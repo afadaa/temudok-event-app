@@ -7,6 +7,10 @@ import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/material_green.css';
 import { QRScanner } from './QRScanner';
 import { Guestbook } from './Guestbook';
+import jsPDF from 'jspdf';
+import { composeUtusanIdCard } from '../utils/idCardUtusan';
+import { composePeninjauIdCard } from '../utils/idCardPeninjau';
+import { composePanitiaIdCard } from '../utils/idCardPanitia';
 
 interface Registrant {
   id: string;
@@ -17,6 +21,8 @@ interface Registrant {
   category: string;
   categoryId: string;
   branchId: string;
+  kriteria?: string;
+  tipePeserta?: string;
   status: string;
   amount: number;
   createdAt: string;
@@ -38,8 +44,26 @@ interface Event {
   categories: { id: string; name: string; price: number; }[];
 }
 
+const KRITERIA_OPTIONS = [
+  { value: 'PENGURUS IDI WILAYAH KALTIM', label: 'PENGURUS IDI WILAYAH KALTIM' },
+  { value: 'ASAL IDI CABANG', label: 'ASAL IDI CABANG' },
+  { value: 'PERHIMPUNAN DAN KESEMINATAN', label: 'PERHIMPUNAN DAN KESEMINATAN' },
+  { value: 'MKEK', label: 'MKEK' }
+];
+
+type ConfirmTone = 'danger' | 'success' | 'warning' | 'neutral';
+type ConfirmDialog = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  tone?: ConfirmTone;
+  resolve: (confirmed: boolean) => void;
+};
+
 export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [registrants, setRegistrants] = useState<Registrant[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -56,6 +80,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterRegistrantType, setFilterRegistrantType] = useState<string>('all');
+  const [filterKriteria, setFilterKriteria] = useState<string>('all');
   const [filterBranch, setFilterBranch] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
@@ -63,6 +88,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [emailActionLoadingId, setEmailActionLoadingId] = useState<string | null>(null);
   const [paymentUploadLoadingId, setPaymentUploadLoadingId] = useState<string | null>(null);
   const [loadingImport, setLoadingImport] = useState(false);
+  const [selectedRegistrantIds, setSelectedRegistrantIds] = useState<string[]>([]);
+  const [loadingCardsPdf, setLoadingCardsPdf] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   // Modal State
@@ -95,6 +123,22 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [catSearch, setCatSearch] = useState('');
 
   const authHeaders = { 'x-admin-username': username, 'x-admin-password': password };
+
+  const requestConfirm = (options: Omit<ConfirmDialog, 'resolve'>) => new Promise<boolean>((resolve) => {
+    setConfirmDialog({
+      ...options,
+      cancelLabel: options.cancelLabel || 'Batalkan',
+      tone: options.tone || 'neutral',
+      resolve,
+    });
+  });
+
+  const closeConfirm = (confirmed: boolean) => {
+    setConfirmDialog(current => {
+      current?.resolve(confirmed);
+      return null;
+    });
+  };
 
   const fetchRegistrants = async () => {
     setLoading(true);
@@ -187,7 +231,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   };
 
   const deleteBranch = async (id: string) => {
-    if (!window.confirm("Hapus cabang ini?")) return;
+    const confirmed = await requestConfirm({
+      title: 'Hapus Cabang?',
+      message: 'Cabang IDI ini akan dihapus dari daftar referensi. Pastikan tidak sedang dipakai untuk data penting.',
+      confirmLabel: 'Hapus Cabang',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/branches/${id}`, { method: 'DELETE', headers: authHeaders });
@@ -233,7 +283,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   };
 
   const deleteCategory = async (id: string) => {
-    if (!window.confirm("Hapus kategori ini?")) return;
+    const confirmed = await requestConfirm({
+      title: 'Hapus Kategori?',
+      message: 'Kategori ini akan dihapus dari daftar tiket. Data pendaftaran lama tidak ikut terhapus.',
+      confirmLabel: 'Hapus Kategori',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE', headers: authHeaders });
@@ -344,10 +400,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     const matchSearch = r.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || r.email.toLowerCase().includes(searchTerm.toLowerCase());
     const isPanitia = String(r.category || '').trim().toUpperCase().startsWith('PANITIA') || String(r.categoryId || '').trim().toUpperCase().startsWith('PANITIA');
     const matchRegistrantType = filterRegistrantType === 'all' || (filterRegistrantType === 'panitia' ? isPanitia : !isPanitia);
+    const matchKriteria = filterKriteria === 'all' || String(r.kriteria || '').trim().toUpperCase() === filterKriteria;
     const matchCat = filterCategory === 'all' || r.categoryId === filterCategory;
     const matchBranch = filterBranch === 'all' || r.branchId === filterBranch;
-    const matchStatus = filterStatus === 'all' || r.status === filterStatus;
-    return matchSearch && matchRegistrantType && matchCat && matchBranch && matchStatus;
+    const isCancelled = ['cancel', 'cancelled', 'batal'].includes(String(r.status || '').toLowerCase());
+    const matchStatus = filterStatus === 'all' ? !isCancelled : filterStatus === 'cancel' ? isCancelled : r.status === filterStatus;
+    return matchSearch && matchRegistrantType && matchKriteria && matchCat && matchBranch && matchStatus;
   });
 
   // Pagination
@@ -358,7 +416,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, filterRegistrantType, filterCategory, filterBranch, filterStatus]);
+    setSelectedRegistrantIds([]);
+  }, [searchTerm, filterRegistrantType, filterKriteria, filterCategory, filterBranch, filterStatus]);
 
   // Image modal
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -370,7 +429,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const closeImage = () => { setImageModalOpen(false); setImageModalUrl(null); };
 
   const markAsPaid = async (orderId: string) => {
-    if (!window.confirm('Tandai pesanan ini sebagai LUNAS?')) return;
+    const confirmed = await requestConfirm({
+      title: 'Tandai Lunas?',
+      message: 'Status pendaftaran akan diubah menjadi berhasil/lunas. Email konfirmasi akan dikirim jika konfigurasi email aktif.',
+      confirmLabel: 'Ya, Tandai Lunas',
+      tone: 'success',
+    });
+    if (!confirmed) return;
     setLoading(true);
     try {
       const res = await fetch('/api/admin/mark-paid', { method: 'POST', headers: { ...authHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId }) });
@@ -383,6 +448,92 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       }
     } catch (e) { toast.error('Terjadi kesalahan jaringan'); }
     finally { setLoading(false); }
+  };
+
+  const cancelRegistration = async (orderId: string) => {
+    const confirmed = await requestConfirm({
+      title: 'Batalkan Pendaftaran?',
+      message: 'Data ini tidak akan tampil di daftar default dan hanya muncul saat filter status Batal dipilih.',
+      confirmLabel: 'Ya, Batalkan',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/cancel-registration', {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      });
+      if (res.ok) {
+        toast.success('Pendaftaran dibatalkan');
+        setSelectedRegistrantIds(ids => ids.filter(id => id !== orderId));
+        await fetchRegistrants();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Gagal membatalkan pendaftaran');
+      }
+    } catch (e) {
+      toast.error('Terjadi kesalahan jaringan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleRegistrantSelection = (id: string) => {
+    setSelectedRegistrantIds(ids => ids.includes(id) ? ids.filter(item => item !== id) : [...ids, id]);
+  };
+
+  const toggleVisibleSelection = () => {
+    const visibleIds = pagedRegistrants.map(r => r.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedRegistrantIds.includes(id));
+    setSelectedRegistrantIds(ids => allSelected
+      ? ids.filter(id => !visibleIds.includes(id))
+      : Array.from(new Set([...ids, ...visibleIds]))
+    );
+  };
+
+  const composeRegistrantCard = async (registrant: Registrant) => {
+    const normalizedCategory = String(registrant.category || '').trim().toUpperCase();
+    const isPanitia = normalizedCategory.startsWith('PANITIA');
+    const isIdiCabang = String(registrant.kriteria || '').trim().toUpperCase() === 'ASAL IDI CABANG';
+    const branchName = branches.find(b => b.id === registrant.branchId)?.name || registrant.branchId || '';
+    const categoryLabel = (normalizedCategory.startsWith('UTUSAN') || isIdiCabang) && branchName
+      ? `UTUSAN ${branchName}`
+      : registrant.category;
+
+    if (isPanitia) return composePanitiaIdCard(registrant.fullName);
+    if (isIdiCabang || normalizedCategory.startsWith('UTUSAN')) return composeUtusanIdCard(registrant.photoUrl || '', registrant.fullName, registrant.id, categoryLabel);
+    return composePeninjauIdCard(registrant.photoUrl || '', registrant.fullName, registrant.id);
+  };
+
+  const downloadSelectedCardsPdf = async () => {
+    const selected = registrants.filter(r => selectedRegistrantIds.includes(r.id));
+    if (!selected.length) {
+      toast.error('Pilih minimal satu pendaftar');
+      return;
+    }
+
+    setLoadingCardsPdf(true);
+    try {
+      let pdf: jsPDF | null = null;
+      for (let index = 0; index < selected.length; index += 1) {
+        const canvas = await composeRegistrantCard(selected[index]);
+        if (!pdf) {
+          pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
+        } else {
+          pdf.addPage([canvas.width, canvas.height], canvas.width > canvas.height ? 'landscape' : 'portrait');
+        }
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
+      }
+      pdf?.save(`KARTU-PESERTA-${selected.length}-DATA.pdf`);
+      toast.success(`Berhasil membuat PDF ${selected.length} kartu`);
+    } catch (error) {
+      console.error('Bulk card PDF error:', error);
+      toast.error('Gagal membuat PDF kartu');
+    } finally {
+      setLoadingCardsPdf(false);
+    }
   };
 
   const startEditEmail = (registrant: Registrant) => {
@@ -431,7 +582,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   };
 
   const resendRegistrantEmail = async (registrant: Registrant) => {
-    if (!window.confirm(`Kirim ulang e-tiket ke ${registrant.email}?`)) return;
+    const confirmed = await requestConfirm({
+      title: 'Kirim Ulang Email?',
+      message: `E-tiket akan dikirim ulang ke ${registrant.email}.`,
+      confirmLabel: 'Kirim Ulang',
+      tone: 'neutral',
+    });
+    if (!confirmed) return;
 
     setEmailActionLoadingId(registrant.id);
     try {
@@ -907,6 +1064,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     {loadingExport ? <RefreshCw size={14} className="animate-spin" /> : <FileDown size={14} />} 
                     {loadingExport ? 'Mengekspor...' : 'Ekspor Excel'}
                   </button>
+                  <button 
+                    disabled={loadingCardsPdf || selectedRegistrantIds.length === 0}
+                    onClick={downloadSelectedCardsPdf}
+                    className="flex min-h-10 items-center justify-center gap-2 bg-emerald-600 border border-emerald-600 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-black text-white uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50"
+                  >
+                    {loadingCardsPdf ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+                    {loadingCardsPdf ? 'Membuat PDF...' : `Download Kartu PDF (${selectedRegistrantIds.length})`}
+                  </button>
                   <button onClick={fetchRegistrants} className="flex min-h-10 items-center justify-center gap-2 bg-white border border-slate-200 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-widest hover:border-slate-300">
                     <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
                   </button>
@@ -914,8 +1079,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               </div>
 
               {/* Filters */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-                <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 flex items-center focus-within:border-slate-300">
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3 items-center">
+                <div className="sm:col-span-2 xl:col-span-2 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 flex items-center focus-within:border-slate-300">
                   <Search size={16} className="text-slate-400 mr-3" />
                   <input 
                     type="text" placeholder="Cari nama, email, atau ID..."
@@ -924,7 +1089,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   />
                 </div>
                 <select
-                  className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
                   value={filterRegistrantType}
                   onChange={e => setFilterRegistrantType(e.target.value)}
                 >
@@ -933,39 +1098,156 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   <option value="panitia">Panitia</option>
                 </select>
                 <select 
-                  className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
                   value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
                 >
                   <option value="all">Semua Kategori</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <select 
-                  className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  value={filterKriteria} onChange={e => setFilterKriteria(e.target.value)}
+                >
+                  <option value="all">Semua Kriteria</option>
+                  {KRITERIA_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+                <select 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
                   value={filterBranch} onChange={e => setFilterBranch(e.target.value)}
                 >
                   <option value="all">Semua Cabang</option>
                   {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
                 <select 
-                  className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
                   value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
                 >
                   <option value="all">Semua Status</option>
                   <option value="settlement">Berhasil (Paid)</option>
                   <option value="pending">Menunggu (Pending)</option>
+                  <option value="cancel">Batal</option>
                 </select>
               </div>
 
               <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden min-h-[400px]">
                 {filteredRegistrants.length > 0 ? (
-                  <table className="w-full table-fixed text-left">
+                  <>
+                  <div className="xl:hidden divide-y divide-slate-100">
+                    <div className="flex items-center justify-between bg-slate-50 px-4 py-3">
+                      <button type="button" onClick={toggleVisibleSelection} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-emerald-600">
+                        {pagedRegistrants.length > 0 && pagedRegistrants.every(r => selectedRegistrantIds.includes(r.id)) ? <CheckSquare size={16} /> : <Square size={16} />}
+                        Pilih halaman ini
+                      </button>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{filteredRegistrants.length} Data</span>
+                    </div>
+                    {pagedRegistrants.map(r => {
+                      const branchName = branches.find(b => b.id === r.branchId)?.name || r.branchId || '-';
+                      const isPanitia = String(r.category || '').trim().toUpperCase().startsWith('PANITIA');
+                      const isCancelled = ['cancel', 'cancelled', 'batal'].includes(String(r.status || '').toLowerCase());
+                      const isIdiCabang = String(r.kriteria || '').trim().toUpperCase() === 'ASAL IDI CABANG';
+                      const categoryDisplay = (String(r.category || '').trim().toUpperCase().startsWith('UTUSAN') || isIdiCabang) && branchName !== '-'
+                        ? `UTUSAN ${branchName}`
+                        : r.category;
+                      let proofUrl = r.paymentPhoto || '';
+                      if (proofUrl && !proofUrl.startsWith('data:') && !proofUrl.startsWith('http') && !proofUrl.startsWith('/')) proofUrl = `/uploads/${proofUrl}`;
+                      const isPdf = proofUrl.toLowerCase().includes('.pdf') || proofUrl.startsWith('data:application/pdf');
+
+                      return (
+                        <div key={`card-${r.id}`} className="p-4">
+                          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-emerald-100 hover:shadow-md">
+                            <div className="mb-3 flex items-start justify-between gap-3">
+                              <button type="button" onClick={() => toggleRegistrantSelection(r.id)} className="mt-1 shrink-0 text-slate-400 hover:text-emerald-600" title="Pilih untuk download kartu PDF">
+                                {selectedRegistrantIds.includes(r.id) ? <CheckSquare size={20} /> : <Square size={20} />}
+                              </button>
+                              <div className="min-w-0 flex-1">
+                                <div className="break-words text-sm font-black text-slate-900">{r.fullName}</div>
+                                <div className="mt-1 break-all text-[10px] font-semibold text-slate-400">ID: {r.id}</div>
+                              </div>
+                              <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${isCancelled ? 'bg-rose-50 text-rose-700' : r.status === 'settlement' || r.status === 'capture' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                {r.status}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2 text-xs font-semibold text-slate-600">
+                              <div className="break-all">{r.email}</div>
+                              <div>{r.phone || '-'}</div>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-slate-700">{categoryDisplay}</span>
+                                <span className="rounded-full bg-slate-50 px-3 py-1 text-[10px] font-black uppercase text-slate-500">{branchName}</span>
+                                <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase ${r.photoUrl ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                                  {r.photoUrl ? <CheckCircle2 size={12} /> : <Camera size={12} />}
+                                  {r.photoUrl ? 'Foto Ada' : 'Foto Belum Ada'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-2">
+                              <label className={`inline-flex cursor-pointer items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 ${paymentUploadLoadingId === r.id ? 'pointer-events-none opacity-60' : ''}`}>
+                                {paymentUploadLoadingId === r.id ? <RefreshCw size={12} className="animate-spin" /> : <Upload size={12} />}
+                                {r.paymentPhoto ? 'Ganti Bukti' : 'Upload Bukti'}
+                                <input
+                                  type="file"
+                                  accept="image/*,application/pdf,.pdf"
+                                  className="hidden"
+                                  disabled={paymentUploadLoadingId === r.id}
+                                  onChange={(e) => {
+                                    uploadPaymentProof(r, e.target.files?.[0]);
+                                    e.currentTarget.value = '';
+                                  }}
+                                />
+                              </label>
+                              {proofUrl ? (
+                                <button type="button" onClick={() => isPdf ? window.open(proofUrl, '_blank') : openImage(proofUrl)} className="rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50">
+                                  Lihat Bukti
+                                </button>
+                              ) : (
+                                <div className="rounded-xl border border-dashed border-slate-200 px-3 py-2 text-center text-[10px] font-black uppercase tracking-widest text-slate-300">Belum Ada</div>
+                              )}
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                              {r.status !== 'settlement' && r.status !== 'capture' && !isCancelled && (
+                                <button onClick={() => markAsPaid(r.id)} className="rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-emerald-700">{isPanitia ? 'Approve' : 'Tandai Lunas'}</button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={emailActionLoadingId === r.id || isCancelled || (r.status !== 'settlement' && r.status !== 'capture')}
+                                onClick={() => resendRegistrantEmail(r)}
+                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {emailActionLoadingId === r.id ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />}
+                                Kirim Ulang
+                              </button>
+                              {!isCancelled && (
+                                <button
+                                  type="button"
+                                  disabled={loading}
+                                  onClick={() => cancelRegistration(r.id)}
+                                  className="inline-flex items-center justify-center gap-1 rounded-xl border border-rose-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-600 hover:border-rose-500 hover:bg-rose-50 disabled:opacity-40"
+                                >
+                                  <X size={13} />
+                                  Batal
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <table className="hidden w-full table-fixed text-left xl:table">
                     <thead>
                       <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 whitespace-nowrap">
-                        <th className="w-[11%] px-4 py-4">Bukti</th>
-                        <th className="w-[20%] px-4 py-4">Pendaftar</th>
-                        <th className="w-[24%] px-4 py-4">Kontak</th>
-                        <th className="w-[21%] px-4 py-4">Detail Peserta</th>
-                        <th className="w-[12%] px-4 py-4">Status</th>
+                        <th className="w-[5%] px-4 py-4">
+                          <button type="button" onClick={toggleVisibleSelection} className="text-slate-400 hover:text-emerald-600" title="Pilih semua data di halaman ini">
+                            {pagedRegistrants.length > 0 && pagedRegistrants.every(r => selectedRegistrantIds.includes(r.id)) ? <CheckSquare size={16} /> : <Square size={16} />}
+                          </button>
+                        </th>
+                        <th className="w-[10%] px-4 py-4">Bukti</th>
+                        <th className="w-[19%] px-4 py-4">Pendaftar</th>
+                        <th className="w-[23%] px-4 py-4">Kontak</th>
+                        <th className="w-[20%] px-4 py-4">Detail Peserta</th>
+                        <th className="w-[11%] px-4 py-4">Status</th>
                         <th className="w-[12%] px-4 py-4 text-right">Aksi</th>
                       </tr>
                     </thead>
@@ -973,8 +1255,18 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                       {pagedRegistrants.map(r => {
                         const branchName = branches.find(b => b.id === r.branchId)?.name || r.branchId || '-';
                         const isPanitia = String(r.category || '').trim().toUpperCase().startsWith('PANITIA');
+                        const isCancelled = ['cancel', 'cancelled', 'batal'].includes(String(r.status || '').toLowerCase());
+                        const isIdiCabang = String(r.kriteria || '').trim().toUpperCase() === 'ASAL IDI CABANG';
+                        const categoryDisplay = (String(r.category || '').trim().toUpperCase().startsWith('UTUSAN') || isIdiCabang) && branchName !== '-'
+                          ? `UTUSAN ${branchName}`
+                          : r.category;
                         return (
                         <tr key={r.id}>
+                          <td className="px-4 py-4 align-top">
+                            <button type="button" onClick={() => toggleRegistrantSelection(r.id)} className="mt-1 text-slate-400 hover:text-emerald-600" title="Pilih untuk download kartu PDF">
+                              {selectedRegistrantIds.includes(r.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                            </button>
+                          </td>
                           <td className="px-4 py-4 align-top">
                             <label
                               title={r.paymentPhoto ? 'Ganti bukti pembayaran' : 'Upload bukti pembayaran'}
@@ -1070,7 +1362,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                           </td>
                           <td className="px-4 py-4 align-top">
                             <div className="space-y-2">
-                              <span className="inline-flex max-w-full px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase leading-snug break-words">{r.category}</span>
+                              <span className="inline-flex max-w-full px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase leading-snug break-words">{categoryDisplay}</span>
                               <div className="text-[12px] font-semibold text-slate-600 leading-snug break-words">{branchName}</div>
                               <div className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wider ${r.photoUrl ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
                                 {r.photoUrl ? <CheckCircle2 size={12} /> : <Camera size={12} />}
@@ -1080,32 +1372,45 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                           </td>
                           <td className="px-4 py-4 align-top">
                             <div className="flex min-w-0 flex-col items-start gap-2">
-                              <span className={`max-w-full break-words px-2 py-1 rounded text-[10px] uppercase font-black tracking-widest ${r.status === 'settlement' || r.status === 'capture' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
+                              <span className={`max-w-full break-words px-2 py-1 rounded text-[10px] uppercase font-black tracking-widest ${isCancelled ? 'text-rose-700 bg-rose-50' : r.status === 'settlement' || r.status === 'capture' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
                                 {r.status}
                               </span>
-                              {r.status !== 'settlement' && r.status !== 'capture' && (
+                              {r.status !== 'settlement' && r.status !== 'capture' && !isCancelled && (
                                 <button onClick={() => markAsPaid(r.id)} className="max-w-full break-words text-[10px] font-black text-white bg-emerald-600 px-2 py-1 rounded-full hover:bg-emerald-700">{isPanitia ? 'Approve' : 'Tandai Lunas'}</button>
                               )}
                             </div>
                           </td>
                           <td className="px-4 py-4 align-top">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex flex-col items-stretch justify-end gap-2">
                               <button
                                 type="button"
                                 title="Kirim ulang e-tiket ke email peserta"
-                                disabled={emailActionLoadingId === r.id || (r.status !== 'settlement' && r.status !== 'capture')}
+                                disabled={emailActionLoadingId === r.id || isCancelled || (r.status !== 'settlement' && r.status !== 'capture')}
                                 onClick={() => resendRegistrantEmail(r)}
                                 className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-slate-200 px-2 py-2 text-[10px] font-black uppercase leading-tight tracking-widest text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 {emailActionLoadingId === r.id ? <RefreshCw size={13} className="animate-spin" /> : <Mail size={13} />}
                                 Kirim Ulang
                               </button>
+                              {!isCancelled && (
+                                <button
+                                  type="button"
+                                  title="Batalkan pendaftaran"
+                                  disabled={loading}
+                                  onClick={() => cancelRegistration(r.id)}
+                                  className="inline-flex w-full items-center justify-center gap-1 rounded-full border border-rose-200 px-2 py-2 text-[10px] font-black uppercase leading-tight tracking-widest text-rose-600 hover:border-rose-500 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  <X size={13} />
+                                  Batal
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
                       )})}
                     </tbody>
                   </table>
+                  </>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
@@ -1361,6 +1666,74 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
         </div>
       </main>
+
+      <AnimatePresence>
+        {confirmDialog && (
+          <motion.div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-confirm-title"
+              className="w-full max-w-md overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl"
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+            >
+              <div className={`h-1.5 ${
+                confirmDialog.tone === 'danger' ? 'bg-rose-500' :
+                confirmDialog.tone === 'success' ? 'bg-emerald-500' :
+                confirmDialog.tone === 'warning' ? 'bg-amber-500' :
+                'bg-slate-900'
+              }`} />
+              <div className="p-6 sm:p-8">
+                <div className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl ${
+                  confirmDialog.tone === 'danger' ? 'bg-rose-50 text-rose-600' :
+                  confirmDialog.tone === 'success' ? 'bg-emerald-50 text-emerald-600' :
+                  confirmDialog.tone === 'warning' ? 'bg-amber-50 text-amber-600' :
+                  'bg-slate-100 text-slate-900'
+                }`}>
+                  {confirmDialog.tone === 'danger' ? <Trash2 size={26} /> : confirmDialog.tone === 'success' ? <CheckCircle2 size={26} /> : <RefreshCw size={24} />}
+                </div>
+
+                <h3 id="admin-confirm-title" className="text-xl font-black uppercase tracking-tight text-slate-900">
+                  {confirmDialog.title}
+                </h3>
+                <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-500">
+                  {confirmDialog.message}
+                </p>
+
+                <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => closeConfirm(false)}
+                    className="order-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 transition hover:bg-slate-50 sm:order-1"
+                  >
+                    {confirmDialog.cancelLabel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => closeConfirm(true)}
+                    className={`order-1 rounded-2xl px-5 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-lg transition sm:order-2 ${
+                      confirmDialog.tone === 'danger' ? 'bg-rose-600 shadow-rose-100 hover:bg-rose-700' :
+                      confirmDialog.tone === 'success' ? 'bg-emerald-600 shadow-emerald-100 hover:bg-emerald-700' :
+                      confirmDialog.tone === 'warning' ? 'bg-amber-600 shadow-amber-100 hover:bg-amber-700' :
+                      'bg-slate-900 shadow-slate-200 hover:bg-slate-800'
+                    }`}
+                  >
+                    {confirmDialog.confirmLabel}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
