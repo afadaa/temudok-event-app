@@ -4,6 +4,7 @@ import { EventController } from '../controllers/EventController.ts';
 import { PaymentController } from '../controllers/PaymentController.ts';
 import { PublicController } from '../controllers/PublicController.ts';
 import { requireAdmin } from '../middleware/auth.ts';
+import { upload } from '../middleware/upload.ts';
 
 const router = express.Router();
 
@@ -39,6 +40,7 @@ router.delete('/admin/categories/:id', requireAdmin, PublicController.deleteCate
 // Admin Routes (Data & Operations)
 router.get('/admin/registrations', requireAdmin, AdminController.getRegistrations);
 router.put('/admin/registrations/:orderId/email', requireAdmin, AdminController.updateRegistrationEmail);
+router.post('/admin/registrations/:orderId/photo', requireAdmin, upload.single('photo'), AdminController.uploadParticipantPhoto);
 router.post('/admin/check-in', requireAdmin, AdminController.checkIn);
 router.post('/admin/mark-paid', requireAdmin, AdminController.markAsPaid);
 router.post('/admin/cancel-registration', requireAdmin, AdminController.cancelRegistration);

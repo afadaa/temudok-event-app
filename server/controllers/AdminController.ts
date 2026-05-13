@@ -1,4 +1,6 @@
 import type { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc, db, adminDb } from '../database/compat.ts';
 import { sendTicketEmail, sendBroadcastEmail, sendPanitiaApprovalEmail } from '../services/MailService.ts';
 
@@ -230,6 +232,56 @@ export class AdminController {
     } catch (error) {
       console.error('updateRegistrationEmail Error:', error);
       res.status(500).json({ error: 'Gagal memperbarui email peserta' });
+    }
+  }
+
+  static async uploadParticipantPhoto(req: Request, res: Response) {
+    const uploadedFile = (req as any).file;
+    try {
+      const orderId = String(req.params.orderId || req.body.orderId || '').trim();
+      if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+      if (!uploadedFile) return res.status(400).json({ error: 'No file uploaded (expected field "photo")' });
+
+      const mimetype = String(uploadedFile.mimetype || '').toLowerCase();
+      if (!mimetype.startsWith('image/')) {
+        try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', uploadedFile.filename)); } catch {}
+        return res.status(400).json({ error: 'Foto peserta harus berupa gambar' });
+      }
+
+      const fileUrl = `/uploads/${uploadedFile.filename}`;
+      const payload = {
+        photoUrl: fileUrl,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (adminDb) {
+        const ref = adminDb.collection('registrations').doc(orderId);
+        const snap = await ref.get();
+        if (!snap.exists) {
+          try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', uploadedFile.filename)); } catch {}
+          return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+        }
+        await ref.update(payload);
+      } else {
+        const docRef = doc(db, 'registrations', orderId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+          try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', uploadedFile.filename)); } catch {}
+          return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+        }
+        await updateDoc(docRef, payload);
+      }
+
+      res.json({ success: true, photoUrl: fileUrl });
+    } catch (error) {
+      if (uploadedFile) {
+        try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', uploadedFile.filename)); } catch {}
+      }
+      console.error('Admin Participant Photo Upload Error:', error);
+      res.status(500).json({
+        error: 'Gagal mengunggah foto peserta',
+        detail: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

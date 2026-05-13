@@ -351,8 +351,53 @@ export async function runMysqlMigrations() {
         await connection.query(statement);
       }
     }
+    await ensureMysqlSchemaColumns(connection);
   } finally {
     connection.release();
+  }
+}
+
+async function ensureMysqlSchemaColumns(connection: mysql.PoolConnection) {
+  const requiredColumns: Record<string, Record<string, string>> = {
+    registrations: {
+      orderId: 'VARCHAR(191) NULL',
+      eventId: 'VARCHAR(191) NULL',
+      eventTitle: 'VARCHAR(255) NULL',
+      phone: 'VARCHAR(50) NULL',
+      npa: 'VARCHAR(100) NULL',
+      categoryId: 'VARCHAR(191) NULL',
+      branchId: 'VARCHAR(191) NULL',
+      kriteria: 'VARCHAR(255) NULL',
+      tipePeserta: 'VARCHAR(255) NULL',
+      suratMandatUrl: 'TEXT NULL',
+      komisi: 'VARCHAR(255) NULL',
+      perhimpunanName: 'VARCHAR(255) NULL',
+      mkekBranch: 'VARCHAR(255) NULL',
+      bersedia: 'TINYINT(1) NOT NULL DEFAULT 0',
+      amount: 'INT NOT NULL DEFAULT 0',
+      paymentVerified: 'TINYINT(1) NOT NULL DEFAULT 0',
+      paymentPhoto: 'LONGTEXT NULL',
+      paymentPhotoFile: 'TEXT NULL',
+      photoUrl: 'LONGTEXT NULL',
+      checkedIn: 'TINYINT(1) NOT NULL DEFAULT 0',
+      checkedInAt: 'DATETIME NULL',
+      updatedAt: 'DATETIME NULL',
+    },
+  };
+
+  for (const [table, tableColumns] of Object.entries(requiredColumns)) {
+    const [existingRows] = await connection.query(
+      'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+      [table]
+    );
+    const existing = new Set((existingRows as any[]).map(row => String(row.COLUMN_NAME)));
+
+    for (const [column, definition] of Object.entries(tableColumns)) {
+      if (!existing.has(column)) {
+        await connection.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
+        existing.add(column);
+      }
+    }
   }
 }
 

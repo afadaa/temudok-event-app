@@ -84,11 +84,11 @@ const storage = multer.diskStorage({
     cb(null, dir);
   },
   filename: function (req, file, cb) {
-    const orderId = req.body.orderId || req.body.order_id || 'unknown';
+    const orderId = req.params?.orderId || req.body.orderId || req.body.order_id || 'unknown';
     // Sanitize orderId untuk nama file (hapus karakter tidak valid)
     const safeOrderId = orderId.replace(/[^a-zA-Z0-9_\-]/g, '_');
     const prefix = file.fieldname === 'photo' ? 'participant' : 'payment';
-    cb(null, `${prefix}-${safeOrderId}${path.extname(file.originalname)}`);
+    cb(null, `${prefix}-${safeOrderId}-${Date.now()}${path.extname(file.originalname)}`);
   }
 });
 
@@ -1008,7 +1008,10 @@ async function startServer() {
         try { fs.unlinkSync(path.join(process.cwd(), 'public', 'uploads', uploadedFile.filename)); } catch (e) {}
       }
       console.error('Admin Participant Photo Upload Error:', error);
-      res.status(500).json({ error: 'Gagal mengunggah foto peserta' });
+      res.status(500).json({
+        error: 'Gagal mengunggah foto peserta',
+        detail: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
