@@ -198,6 +198,7 @@ export function CheckStatus({ onBack, initialOrderId, onStatusSuccess }: CheckSt
                       branchName: statusData.branchName,
                       branchId: statusData.branchId,
                       kriteria: statusData.kriteria,
+                      komisi: statusData.komisi,
                     }} 
                     qrCodeUrl={qrCodeUrl} 
                  />

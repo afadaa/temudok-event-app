@@ -232,6 +232,7 @@ export class PaymentController {
         branchName,
         kriteria: regData.kriteria || '',
         tipePeserta: regData.tipePeserta || '',
+        komisi: regData.komisi || '',
         photoUrl: regData.photoUrl || '',
       };
 

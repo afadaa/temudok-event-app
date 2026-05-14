@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import Select from 'react-select';
 
 interface RegistrationFormProps {
-  onSuccess: (data: { fullName: string, email: string, category: string, orderId?: string }) => void;
+  onSuccess: (data: { fullName: string, email: string, category: string, orderId?: string, komisi?: string, kriteria?: string, branchId?: string }) => void;
   onPending: (data: { orderId: string }) => void;
   selectedEventId: string;
 }

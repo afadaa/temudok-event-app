@@ -23,6 +23,7 @@ interface Registrant {
   branchId: string;
   kriteria?: string;
   tipePeserta?: string;
+  komisi?: string;
   status: string;
   amount: number;
   createdAt: string;
@@ -49,6 +50,12 @@ const KRITERIA_OPTIONS = [
   { value: 'ASAL IDI CABANG', label: 'ASAL IDI CABANG' },
   { value: 'PERHIMPUNAN DAN KESEMINATAN', label: 'PERHIMPUNAN DAN KESEMINATAN' },
   { value: 'MKEK', label: 'MKEK' }
+];
+
+const KOMISI_OPTIONS = [
+  { value: 'SIDANG KOMISI A ( KEBIJAKAN ORGANISASI INTERNAL )', label: 'SIDANG KOMISI A' },
+  { value: 'SIDANG KOMISI B ( PELAYANAN PROFESI KEDOKTERAN )', label: 'SIDANG KOMISI B' },
+  { value: 'SIDANG KOMISI C ( PENDIDIKAN DOKTER DAN CPD )', label: 'SIDANG KOMISI C' }
 ];
 
 type ConfirmTone = 'danger' | 'success' | 'warning' | 'neutral';
@@ -81,6 +88,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterRegistrantType, setFilterRegistrantType] = useState<string>('all');
   const [filterKriteria, setFilterKriteria] = useState<string>('all');
+  const [filterKomisi, setFilterKomisi] = useState<string>('all');
   const [filterBranch, setFilterBranch] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
@@ -402,11 +410,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     const isPanitia = String(r.category || '').trim().toUpperCase().startsWith('PANITIA') || String(r.categoryId || '').trim().toUpperCase().startsWith('PANITIA');
     const matchRegistrantType = filterRegistrantType === 'all' || (filterRegistrantType === 'panitia' ? isPanitia : !isPanitia);
     const matchKriteria = filterKriteria === 'all' || String(r.kriteria || '').trim().toUpperCase() === filterKriteria;
+    const matchKomisi = filterKomisi === 'all' || String(r.komisi || '').trim().toUpperCase() === filterKomisi;
     const matchCat = filterCategory === 'all' || r.categoryId === filterCategory;
     const matchBranch = filterBranch === 'all' || r.branchId === filterBranch;
     const isCancelled = ['cancel', 'cancelled', 'batal'].includes(String(r.status || '').toLowerCase());
     const matchStatus = filterStatus === 'all' ? !isCancelled : filterStatus === 'cancel' ? isCancelled : r.status === filterStatus;
-    return matchSearch && matchRegistrantType && matchKriteria && matchCat && matchBranch && matchStatus;
+    return matchSearch && matchRegistrantType && matchKriteria && matchKomisi && matchCat && matchBranch && matchStatus;
   });
 
   // Pagination
@@ -418,7 +427,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     setPage(1);
     setSelectedRegistrantIds([]);
-  }, [searchTerm, filterRegistrantType, filterKriteria, filterCategory, filterBranch, filterStatus]);
+  }, [searchTerm, filterRegistrantType, filterKriteria, filterKomisi, filterCategory, filterBranch, filterStatus]);
 
   // Image modal
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -504,7 +513,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       : registrant.category;
 
     if (isPanitia) return composePanitiaIdCard(registrant.fullName);
-    if (isIdiCabang || normalizedCategory.startsWith('UTUSAN')) return composeUtusanIdCard(registrant.photoUrl || '', registrant.fullName, registrant.id, categoryLabel);
+    if (isIdiCabang || normalizedCategory.startsWith('UTUSAN')) return composeUtusanIdCard(registrant.photoUrl || '', registrant.fullName, registrant.id, categoryLabel, registrant.komisi || '');
     return composePeninjauIdCard(registrant.photoUrl || '', registrant.fullName, registrant.id);
   };
 
@@ -709,6 +718,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         'NPA IDI': r.npa || '-',
         'Kategori': r.category,
         'Cabang IDI': branches.find(b => b.id === r.branchId)?.name || r.branchId || '-',
+        'Sidang Komisi': r.komisi || '-',
         'Status': r.status,
         'Total Bayar': r.amount,
         'Tgl Daftar': new Date(r.createdAt).toLocaleString('id-ID')
@@ -1122,7 +1132,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               </div>
 
               {/* Filters */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3 items-center">
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-8 gap-3 items-center">
                 <div className="sm:col-span-2 xl:col-span-2 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 flex items-center focus-within:border-slate-300">
                   <Search size={16} className="text-slate-400 mr-3" />
                   <input 
@@ -1160,6 +1170,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                 >
                   <option value="all">Semua Cabang</option>
                   {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+                <select
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
+                  value={filterKomisi}
+                  onChange={e => setFilterKomisi(e.target.value)}
+                >
+                  <option value="all">Semua Sidang</option>
+                  {KOMISI_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
                 <select 
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest outline-none text-slate-600 focus:border-emerald-500"
@@ -1217,6 +1235,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                               <div className="flex flex-wrap gap-2 pt-1">
                                 <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-slate-700">{categoryDisplay}</span>
                                 <span className="rounded-full bg-slate-50 px-3 py-1 text-[10px] font-black uppercase text-slate-500">{branchName}</span>
+                                {r.komisi && (
+                                  <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-black uppercase text-amber-700">{r.komisi}</span>
+                                )}
                                 <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase ${r.photoUrl ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
                                   {r.photoUrl ? <CheckCircle2 size={12} /> : <Camera size={12} />}
                                   {r.photoUrl ? 'Foto Ada' : 'Foto Belum Ada'}
@@ -1250,7 +1271,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
                             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                               {r.status !== 'settlement' && r.status !== 'capture' && !isCancelled && (
-                                <button onClick={() => markAsPaid(r.id)} className="rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-emerald-700">{isPanitia ? 'Approve' : 'Tandai Lunas'}</button>
+                                <button onClick={() => markAsPaid(r.id)} className="rounded-xl bg-emerald-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-100 active:translate-y-0">{isPanitia ? 'Approve' : 'Tandai Lunas'}</button>
                               )}
                               <button
                                 type="button"
@@ -1404,6 +1425,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             <div className="space-y-2">
                               <span className="inline-flex max-w-full px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase leading-snug break-words">{categoryDisplay}</span>
                               <div className="text-[12px] font-semibold text-slate-600 leading-snug break-words">{branchName}</div>
+                              {r.komisi && (
+                                <div className="inline-flex max-w-full px-3 py-1 bg-amber-50 rounded-full text-[10px] font-black uppercase leading-snug text-amber-700 break-words">{r.komisi}</div>
+                              )}
                               <div className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wider ${r.photoUrl ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
                                 {r.photoUrl ? <CheckCircle2 size={12} /> : <Camera size={12} />}
                                 {r.photoUrl ? 'Foto Terunggah' : 'Foto Belum Ada'}
@@ -1416,7 +1440,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                                 {r.status}
                               </span>
                               {r.status !== 'settlement' && r.status !== 'capture' && !isCancelled && (
-                                <button onClick={() => markAsPaid(r.id)} className="max-w-full break-words text-[10px] font-black text-white bg-emerald-600 px-2 py-1 rounded-full hover:bg-emerald-700">{isPanitia ? 'Approve' : 'Tandai Lunas'}</button>
+                                <button onClick={() => markAsPaid(r.id)} className="max-w-full break-words rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-black text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-100 active:translate-y-0">{isPanitia ? 'Approve' : 'Tandai Lunas'}</button>
                               )}
                             </div>
                           </td>

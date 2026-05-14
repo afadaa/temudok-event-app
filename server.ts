@@ -885,6 +885,7 @@ async function startServer() {
         branchName,
         kriteria: regData.kriteria || '',
         tipePeserta: regData.tipePeserta || '',
+        komisi: regData.komisi || '',
         photoUrl: regData.photoUrl || getPaymentPhotoUrl(orderId),
       };
       const photoUrl = regData.photoUrl || getPaymentPhotoUrl(orderId);

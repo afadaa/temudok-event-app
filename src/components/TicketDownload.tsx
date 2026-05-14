@@ -17,6 +17,7 @@ interface TicketDownloadProps {
     branchName?: string;
     branchId?: string;
     kriteria?: string;
+    komisi?: string;
   };
   qrCodeUrl: string;
   allowPhotoUpload?: boolean;
@@ -93,7 +94,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
         : usesPeninjauTemplate
           ? await composePeninjauIdCard(photoSrc, data.fullName, data.orderId || '')
           : usesUtusanTemplate
-            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', utusanCategoryLabel)
+            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', utusanCategoryLabel, data.komisi || '')
             : await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
       const filename = `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.png`;
       if (isPanitia) {
@@ -123,7 +124,7 @@ export function TicketDownload({ data, qrCodeUrl }: TicketDownloadProps) {
         : usesPeninjauTemplate
           ? await composePeninjauIdCard(photoSrc, data.fullName, data.orderId || '')
           : usesUtusanTemplate
-            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', utusanCategoryLabel)
+            ? await composeUtusanIdCard(photoSrc, data.fullName, data.orderId || '', utusanCategoryLabel, data.komisi || '')
             : await composeIdCard(undefined, photoSrc, data.fullName, data.category, data.orderId || '', 0, 0);
       const filename = `KARTU-PESERTA-${data.fullName.replace(/\s+/g, '-').toUpperCase()}.pdf`;
       if (isPanitia) {

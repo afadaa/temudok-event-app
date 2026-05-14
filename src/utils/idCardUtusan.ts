@@ -61,11 +61,19 @@ const fitText = (
   return { fontSize: minFontSize, lines };
 };
 
+const formatKomisiLabel = (komisi?: string) => {
+  const normalized = String(komisi || '').trim().toUpperCase();
+  if (!normalized) return '';
+  const match = normalized.match(/KOMISI\s+([A-Z])/);
+  return match ? `KOMISI ${match[1]}` : normalized;
+};
+
 export async function composeUtusanIdCard(
   photoSrc: string,
   name: string,
   qrText: string,
-  category = 'UTUSAN'
+  category = 'UTUSAN',
+  komisi = ''
 ) {
   const template = await loadImage(utusanTemplate);
   const photo = photoSrc ? await loadImage(photoSrc).catch(() => null) : null;
@@ -142,6 +150,19 @@ export async function composeUtusanIdCard(
   }
   ctx.font = `${categoryFontSize}px sans-serif`;
   ctx.fillText(categoryDisplay, width / 2, Math.round(height * 0.692), nameMaxWidth);
+
+  const komisiDisplay = formatKomisiLabel(komisi);
+  if (komisiDisplay) {
+    let komisiFontSize = Math.round(width * 0.026);
+    const minKomisiFontSize = Math.round(width * 0.016);
+    ctx.font = `bold ${komisiFontSize}px sans-serif`;
+    while (komisiFontSize > minKomisiFontSize && ctx.measureText(komisiDisplay).width > nameMaxWidth) {
+      komisiFontSize -= 1;
+      ctx.font = `bold ${komisiFontSize}px sans-serif`;
+    }
+    ctx.font = `bold ${komisiFontSize}px sans-serif`;
+    ctx.fillText(komisiDisplay, width / 2, Math.round(height * 0.727), nameMaxWidth);
+  }
 
   // QR code is intentionally left-aligned to the white QR box in Utusan.png.
   const qrX = Math.round(width * 0.104);

@@ -112,7 +112,7 @@ function MainApp() {
     setQrCodeUrl('');
   };
 
-  const handleSuccess = async (data: { fullName: string, email: string, category: string, orderId?: string, photoUrl?: string }) => {
+  const handleSuccess = async (data: { fullName: string, email: string, category: string, orderId?: string, photoUrl?: string, komisi?: string, kriteria?: string, branchId?: string }) => {
     const eventTitle = activeEvent?.title || 'MUSWIL IDI KALTIM 2026';
     const regDataWithTitle = { ...data, eventTitle };
     setTicketFromStatusCheck(false);
@@ -151,6 +151,7 @@ function MainApp() {
         branchName: data.branchName,
         branchId: data.branchId,
         kriteria: data.kriteria,
+        komisi: data.komisi,
       });
       setTicketFromStatusCheck(true);
 
