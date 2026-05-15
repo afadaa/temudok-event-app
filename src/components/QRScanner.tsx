@@ -64,7 +64,7 @@ export const QRScanner = ({ username, password, fullScreen = false }: QRScannerP
               : Math.floor(Math.min(Math.max(minEdge * 0.92, 300), 680));
             return { width: qrboxSize, height: qrboxSize };
           },
-          disableFlip: false,
+          disableFlip: true,
           videoConstraints: {
             facingMode: { ideal: "environment" },
             width: { ideal: 1920 },
