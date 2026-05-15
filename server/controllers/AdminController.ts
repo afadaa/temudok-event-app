@@ -60,6 +60,31 @@ export class AdminController {
     }
   }
 
+  static async cancelCheckIn(req: Request, res: Response) {
+    try {
+      const { orderId } = req.body;
+      if (!orderId) return res.status(400).json({ error: 'Order ID is required' });
+
+      const docRef = doc(db, 'registrations', orderId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        return res.status(404).json({ error: 'Data registrasi tidak ditemukan' });
+      }
+
+      await updateDoc(docRef, {
+        checkedIn: false,
+        checkedInAt: null,
+        checkInCancelledAt: new Date().toISOString()
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Cancel Check-in Error:', error);
+      res.status(500).json({ error: 'Gagal membatalkan check-in' });
+    }
+  }
+
   static async markAsPaid(req: Request, res: Response) {
     try {
       const { orderId } = req.body;

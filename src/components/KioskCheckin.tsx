@@ -132,14 +132,14 @@ export const KioskCheckin = ({ onBack }: { onBack: () => void }) => {
       </header>
 
       {/* Main Area */}
-      <main className="flex-1 p-6 md:p-12 pb-24 md:pb-12 overflow-y-auto">
-        <div className="max-w-6xl mx-auto h-full grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+      <main className={`${activeTab === 'scanner' ? 'flex-1 overflow-hidden' : 'flex-1 p-6 md:p-12 pb-24 md:pb-12 overflow-y-auto'}`}>
+        <div className={`${activeTab === 'scanner' ? 'h-full' : 'max-w-6xl mx-auto h-full grid grid-cols-1 md:grid-cols-12 gap-8 items-start'}`}>
           
           {/* Left Side: Active Content */}
-          <div className="md:col-span-12">
+          <div className={activeTab === 'scanner' ? 'h-full' : 'md:col-span-12'}>
             {activeTab === 'scanner' ? (
-              <div className="max-w-4xl mx-auto">
-                <QRScanner username={username} password={password} />
+              <div className="h-full">
+                <QRScanner username={username} password={password} fullScreen />
               </div>
             ) : (
               <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">

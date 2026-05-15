@@ -1223,6 +1223,11 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                               <div className="min-w-0 flex-1">
                                 <div className="break-words text-sm font-black text-slate-900">{r.fullName}</div>
                                 <div className="mt-1 break-all text-[10px] font-semibold text-slate-400">ID: {r.id}</div>
+                                {r.npa && (
+                                  <div className="mt-1 inline-flex rounded-md bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-indigo-700">
+                                    NPA IDI: {r.npa}
+                                  </div>
+                                )}
                               </div>
                               <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${isCancelled ? 'bg-rose-50 text-rose-700' : r.status === 'settlement' || r.status === 'capture' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                                 {r.status}
@@ -1371,6 +1376,11 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                           <td className="px-4 py-4 align-top">
                             <div className="font-bold text-slate-800 leading-snug break-words">{r.fullName}</div>
                             <div className="text-[11px] text-slate-500">ID: {r.id}</div>
+                            {r.npa && (
+                              <div className="mt-1 inline-flex rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-indigo-700">
+                                NPA IDI: {r.npa}
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-4 align-top text-[13px] text-slate-600">
                             {editingEmailId === r.id ? (

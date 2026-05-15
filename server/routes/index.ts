@@ -42,6 +42,7 @@ router.get('/admin/registrations', requireAdmin, AdminController.getRegistration
 router.put('/admin/registrations/:orderId/email', requireAdmin, AdminController.updateRegistrationEmail);
 router.post('/admin/registrations/:orderId/photo', requireAdmin, upload.single('photo'), AdminController.uploadParticipantPhoto);
 router.post('/admin/check-in', requireAdmin, AdminController.checkIn);
+router.post('/admin/cancel-check-in', requireAdmin, AdminController.cancelCheckIn);
 router.post('/admin/mark-paid', requireAdmin, AdminController.markAsPaid);
 router.post('/admin/cancel-registration', requireAdmin, AdminController.cancelRegistration);
 router.post('/admin/resend-email', requireAdmin, AdminController.resendEmail);

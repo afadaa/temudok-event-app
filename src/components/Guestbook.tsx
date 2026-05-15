@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Clock, Download, MapPin, RefreshCw, Search, User, UserCheck } from 'lucide-react';
+import { BookOpen, Clock, Download, MapPin, RefreshCw, RotateCcw, Search, User, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
@@ -21,6 +21,7 @@ export const Guestbook = ({ username, password }: GuestbookProps) => {
   const [guests, setGuests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [cancelLoadingId, setCancelLoadingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -127,6 +128,39 @@ export const Guestbook = ({ username, password }: GuestbookProps) => {
     }
   };
 
+  const cancelCheckIn = async (guest: any) => {
+    const ok = window.confirm(`Batalkan check-in untuk ${guest.fullName || guest.id}? Peserta ini bisa check-in ulang setelah dibatalkan.`);
+    if (!ok) return;
+
+    setCancelLoadingId(guest.id);
+    setErrorMessage('');
+    try {
+      const response = await fetch('/api/admin/cancel-check-in', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(username && password ? {
+            'x-admin-username': username,
+            'x-admin-password': password,
+          } : {}),
+        },
+        body: JSON.stringify({ orderId: guest.id }),
+      });
+
+      if (response.ok) {
+        setGuests(current => current.filter(item => item.id !== guest.id));
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setErrorMessage(data.error || 'Gagal membatalkan check-in');
+      }
+    } catch (error) {
+      console.error('Failed to cancel check-in:', error);
+      setErrorMessage('Gagal membatalkan check-in');
+    } finally {
+      setCancelLoadingId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-20">
@@ -217,12 +251,13 @@ export const Guestbook = ({ username, password }: GuestbookProps) => {
                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Kategori / Cabang</th>
                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Sidang</th>
                 <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Waktu Hadir</th>
+                <th className="px-6 py-4 text-right text-[9px] font-black uppercase tracking-widest text-slate-400">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-20 text-center">
+                  <td colSpan={5} className="px-6 py-20 text-center">
                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Belum ada peserta yang sesuai filter</p>
                   </td>
                 </tr>
@@ -271,6 +306,18 @@ export const Guestbook = ({ username, password }: GuestbookProps) => {
                           </p>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => cancelCheckIn(guest)}
+                        disabled={cancelLoadingId === guest.id}
+                        className="inline-flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-amber-700 transition-all hover:border-amber-200 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        title="Batalkan check-in agar peserta bisa check-in ulang"
+                      >
+                        {cancelLoadingId === guest.id ? <RefreshCw size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+                        Batal Check-in
+                      </button>
                     </td>
                   </tr>
                 ))
