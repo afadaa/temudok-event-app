@@ -132,7 +132,7 @@ export const KioskCheckin = ({ onBack }: { onBack: () => void }) => {
       </header>
 
       {/* Main Area */}
-      <main className="flex-1 p-6 md:p-12 overflow-y-auto">
+      <main className="flex-1 p-6 md:p-12 pb-24 md:pb-12 overflow-y-auto">
         <div className="max-w-6xl mx-auto h-full grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
           
           {/* Left Side: Active Content */}
