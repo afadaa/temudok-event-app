@@ -1207,6 +1207,15 @@ async function startServer() {
         return res.status(400).json({ error: 'Pembayaran belum lunas/berhasil' });
       }
 
+      const alreadyCheckedIn = data.checkedIn === true || data.checkedIn === 1 || String(data.checkedIn || '').toLowerCase() === 'true';
+      if (alreadyCheckedIn) {
+        return res.status(409).json({
+          error: 'Peserta sudah pernah check-in',
+          checkedInAt: data.checkedInAt || null,
+          participant: data
+        });
+      }
+
       await updateDoc(docRef, {
         checkedIn: true,
         checkedInAt: new Date().toISOString()

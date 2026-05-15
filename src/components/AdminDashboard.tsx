@@ -1758,8 +1758,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             </div>
           )}
 
-          {activeTab === 'scanner' && <QRScanner />}
-          {activeTab === 'guestbook' && <Guestbook />}
+          {activeTab === 'scanner' && <QRScanner username={username} password={password} />}
+          {activeTab === 'guestbook' && <Guestbook username={username} password={password} />}
 
         </div>
       </main>

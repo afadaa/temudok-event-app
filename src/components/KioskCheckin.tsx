@@ -139,11 +139,11 @@ export const KioskCheckin = ({ onBack }: { onBack: () => void }) => {
           <div className="md:col-span-12">
             {activeTab === 'scanner' ? (
               <div className="max-w-4xl mx-auto">
-                <QRScanner />
+                <QRScanner username={username} password={password} />
               </div>
             ) : (
               <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
-                <Guestbook />
+                <Guestbook username={username} password={password} />
               </div>
             )}
           </div>

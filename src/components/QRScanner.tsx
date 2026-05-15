@@ -1,36 +1,78 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Camera, CheckCircle2, XCircle, User, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 
-export const QRScanner = () => {
+interface QRScannerProps {
+  username?: string;
+  password?: string;
+}
+
+const extractOrderId = (decodedText: string) => {
+  const raw = decodedText.trim();
+
+  try {
+    const data = JSON.parse(raw);
+    return String(data.id || data.orderId || data.order_id || '').trim();
+  } catch {
+    // Some external scanner apps or links can encode only the order id.
+  }
+
+  try {
+    const url = new URL(raw);
+    return String(url.searchParams.get('id') || url.searchParams.get('orderId') || url.searchParams.get('order_id') || '').trim();
+  } catch {
+    return raw;
+  }
+};
+
+export const QRScanner = ({ username, password }: QRScannerProps) => {
   const [scanResult, setScanResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const processingRef = useRef(false);
+  const lastScanRef = useRef<{ id: string; timestamp: number } | null>(null);
 
   const startScanner = async () => {
     setIsCameraActive(true);
     setScanResult(null);
+    processingRef.current = false;
 
     // Give the DOM a moment to render the "reader" div
     setTimeout(async () => {
       try {
-        const html5QrCode = new Html5Qrcode("reader");
+        if (html5QrCodeRef.current?.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
+
+        const html5QrCode = new Html5Qrcode("reader", {
+          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+          useBarCodeDetectorIfSupported: true,
+          verbose: false,
+        });
         html5QrCodeRef.current = html5QrCode;
 
         const config = { 
-          fps: 10, 
-          qrbox: { width: 300, height: 300 },
-          aspectRatio: 1.0 // Square aspect ratio for the scan area
+          fps: 15,
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(Math.min(Math.max(minEdge * 0.72, 220), 420));
+            return { width: qrboxSize, height: qrboxSize };
+          },
+          disableFlip: false,
+          videoConstraints: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
         };
 
-        await html5QrCode.start(
-          { facingMode: "user" }, // Usually kiosk uses front camera
-          config,
-          onScanSuccess,
-          onScanFailure
-        );
+        try {
+          await html5QrCode.start({ facingMode: { ideal: "environment" } }, config, onScanSuccess, onScanFailure);
+        } catch {
+          await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanFailure);
+        }
       } catch (err) {
         console.error("Failed to start scanner:", err);
         toast.error("Gagal mengakses kamera. Pastikan izin kamera telah diberikan.");
@@ -45,6 +87,7 @@ export const QRScanner = () => {
         await html5QrCodeRef.current.stop();
         // The div remains, we just stop the stream
         setIsCameraActive(false);
+        processingRef.current = false;
       } catch (err) {
         console.error("Failed to stop scanner:", err);
       }
@@ -62,19 +105,33 @@ export const QRScanner = () => {
   }, []);
 
   async function onScanSuccess(decodedText: string) {
+    if (processingRef.current) return;
+
     try {
-      const data = JSON.parse(decodedText);
-      if (!data.id) throw new Error("Invalid QR Code");
+      const orderId = extractOrderId(decodedText);
+      if (!orderId) throw new Error("Invalid QR Code");
 
       // Prevent duplicate scan in short time
-      if (scanResult?.participant?.id === data.id && Date.now() - (scanResult?.timestamp || 0) < 5000) return;
+      const lastScan = lastScanRef.current;
+      if (lastScan?.id === orderId && Date.now() - lastScan.timestamp < 5000) return;
 
+      processingRef.current = true;
+      lastScanRef.current = { id: orderId, timestamp: Date.now() };
       setIsLoading(true);
+      if (html5QrCodeRef.current?.isScanning) {
+        html5QrCodeRef.current.pause(false);
+      }
 
       const response = await fetch('/api/admin/check-in', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: data.id }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(username && password ? {
+            'x-admin-username': username,
+            'x-admin-password': password,
+          } : {}),
+        },
+        body: JSON.stringify({ orderId }),
       });
 
       const result = await response.json();
@@ -95,8 +152,22 @@ export const QRScanner = () => {
       }
     } catch (err) {
       console.error("Scan Error:", err);
+      setScanResult({ success: false, message: 'QR Code tidak valid', timestamp: Date.now() });
+      toast.error('QR Code tidak valid');
+      setTimeout(() => setScanResult(null), 3000);
     } finally {
       setIsLoading(false);
+      setTimeout(() => {
+        processingRef.current = false;
+        const scanner = html5QrCodeRef.current;
+        if (scanner?.isScanning) {
+          try {
+            scanner.resume();
+          } catch (resumeErr) {
+            console.warn('Failed to resume scanner:', resumeErr);
+          }
+        }
+      }, 900);
     }
   }
 
